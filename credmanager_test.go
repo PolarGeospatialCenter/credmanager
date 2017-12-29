@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,7 +44,16 @@ func TestValidNode(t *testing.T) {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
 
-	if !h.requestFromValidNode(&types.TokenRequest{Hostname: "bar-ab01-02"}) {
+	nodes, err := h.store.Nodes()
+	if err != nil {
+		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
+	}
+	// The IP address of the node in the sample inventory is not 127.0.0.1, so this should fail
+	if h.requestFromValidNode(&types.TokenRequest{Hostname: nodes["sample0001"].Hostname}, net.ParseIP("127.0.0.1")) {
+		t.Fatalf("Request from invalid node accepted.")
+	}
+
+	if !h.requestFromValidNode(&types.TokenRequest{Hostname: nodes["sample0000"].Hostname}, net.ParseIP("127.0.0.1")) {
 		t.Fatalf("Request from valid node rejected.")
 	}
 }
@@ -73,7 +83,12 @@ func TestCredmanagerHandler(t *testing.T) {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
 
-	body, err := json.Marshal(&types.TokenRequest{Hostname: "bar-ab01-02"})
+	nodes, err := h.store.Nodes()
+	if err != nil {
+		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
+	}
+
+	body, err := json.Marshal(&types.TokenRequest{Hostname: nodes["sample0001"].Hostname})
 	if err != nil {
 		t.Fatalf("Unable to marshal request body: %v", err)
 	}
@@ -81,6 +96,8 @@ func TestCredmanagerHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to create token request: %v", err)
 	}
+	request.RemoteAddr = "10.0.0.1:65534"
+
 	response := httptest.NewRecorder()
 	h.ServeHTTP(response, request)
 	bodytext, _ := ioutil.ReadAll(response.Result().Body)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 
 	consul "github.com/hashicorp/consul/api"
@@ -68,9 +69,23 @@ func (m *CredmanagerHandler) getNode(tr *types.TokenRequest) (*inventorytypes.In
 }
 
 // RequestFromValidNode returns true if and only if r 'from' a node in the InventoryStore
-func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest) bool {
-	_, err := m.getNode(tr)
-	return err == nil
+func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest, src net.IP) bool {
+	if tr == nil || src == nil {
+		return false
+	}
+
+	node, err := m.getNode(tr)
+	if err != nil {
+		return false
+	}
+
+	for _, ip := range node.IPs() {
+		if src.String() == ip.String() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (m *CredmanagerHandler) nodeRegisteredInConsul(tr *types.TokenRequest) bool {
@@ -88,6 +103,13 @@ func (m *CredmanagerHandler) nodeRegisteredInConsul(tr *types.TokenRequest) bool
 func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := &CredmanagerResponse{w}
 	request := &types.TokenRequest{}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		log.Printf("Unable to split request RemoteAddr address:port string : %v")
+		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
+		return
+	}
+	src_ip := net.ParseIP(host)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -101,7 +123,8 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Is the request from a known host?
-	if !m.requestFromValidNode(request) {
+	if !m.requestFromValidNode(request, src_ip) {
+		log.Printf("Request from invalid node or wrong source (%s): %v", src_ip, request)
 		response.JsonMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
