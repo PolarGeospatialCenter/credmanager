@@ -15,13 +15,8 @@ import (
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 )
 
-func getTestCredmanagerHandler(ctx context.Context, cluster bool) (*CredmanagerHandler, error) {
-	var consulConfig *consul.Config
-	if cluster {
-		consulConfig = RunConsulCluster(ctx)
-	} else {
-		consulConfig = RunConsul(ctx)
-	}
+func getTestCredmanagerHandler(ctx context.Context) (*CredmanagerHandler, error) {
+	consulConfig := RunConsul(ctx)
 	vaultConfig := RunVault(ctx)
 	consulClient, err := consul.NewClient(consulConfig)
 	if err != nil {
@@ -42,7 +37,7 @@ func getTestCredmanagerHandler(ctx context.Context, cluster bool) (*CredmanagerH
 func TestValidNode(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	h, err := getTestCredmanagerHandler(ctx, false)
+	h, err := getTestCredmanagerHandler(ctx)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
@@ -55,7 +50,7 @@ func TestValidNode(t *testing.T) {
 func TestNodeRegisteredInConsul(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	h, err := getTestCredmanagerHandler(ctx, true)
+	h, err := getTestCredmanagerHandler(ctx)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
@@ -72,7 +67,7 @@ func TestNodeRegisteredInConsul(t *testing.T) {
 func TestCredmanagerHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	h, err := getTestCredmanagerHandler(ctx, true)
+	h, err := getTestCredmanagerHandler(ctx)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
