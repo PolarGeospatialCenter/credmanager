@@ -10,6 +10,14 @@ import (
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 )
 
+func readConfig() *viper.Viper {
+	cfg := viper.New()
+	cfg.SetConfigName("credmanager")
+	cfg.AddConfigPath(".")
+	cfg.ReadInConfig()
+	return cfg
+}
+
 func getConsulClient(cfg *viper.Viper) (*consul.Client, error) {
 	config := consul.DefaultConfig()
 	config.Address = cfg.GetString("consul.address")
@@ -29,10 +37,7 @@ func getVaultClient(cfg *viper.Viper) (*vault.Client, error) {
 }
 
 func main() {
-	cfg := viper.New()
-	cfg.SetConfigName("credmanager")
-	cfg.AddConfigPath(".")
-	cfg.ReadInConfig()
+	cfg := readConfig()
 
 	consulClient, err := getConsulClient(cfg)
 	if err != nil {
@@ -49,7 +54,7 @@ func main() {
 		log.Fatalf("Unable to connect to consul inventory: %v", err)
 	}
 
-	h := NewCredmanagerHandler(consulStore, consulClient, NewTokenManager(vaultClient))
+	h := NewCredmanagerHandler(consulStore, consulClient, NewTokenManager(vaultClient, cfg.GetString("vault.policy.template")))
 	http.Handle("/token", h)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

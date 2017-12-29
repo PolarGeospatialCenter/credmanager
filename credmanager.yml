@@ -1,0 +1,27 @@
+---
+consul:
+  address: "127.0.0.1:8500"
+  token: ""
+vault:
+  address: "http://127.0.0.1:8200"
+  token: ""
+  policy:
+    template: |
+      path "/test-signer/sign/testrole" {
+        capabilities = [ "create", "update" ]
+        allowed_parameters = {
+          "valid_principals" = ["{{.Node.Hostname}}.pgc.umn.edu"]
+          "*" = []
+        }
+      }
+
+      path "/pki/issue/testrole" {
+        capabilities = [ "create", "update" ]
+        allowed_parameters = {
+          "common_name" = ["{{.Node.Hostname}}.pgc.umn.edu"]
+          "*" = []
+        }
+        denied_parameters = {
+          "alt_names" = []
+        }
+      }
