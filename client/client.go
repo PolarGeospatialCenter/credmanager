@@ -55,9 +55,9 @@ func ValidTokenFormat(token string) bool {
 // CredManagerClient retrieves a vault token from a credmanager api server and
 // stores it locally so that it can be used as long as it remains valid.
 type CredManagerClient struct {
-	ServerUrl string
-	TokenFile string
-	Hostname  string
+	ServerUrl string `mapstructure:"server_url"`
+	TokenFile string `mapstructure:"token_file"`
+	Hostname  string `mapstructure:"hostname"`
 }
 
 func (cm *CredManagerClient) GetToken(httpClient HTTPClient, unwrapper TokenUnwrapper) (string, error) {
