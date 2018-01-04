@@ -130,7 +130,7 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if m.nodeRegisteredInConsul(request) {
-		log.Printf("Node registered in consul, denying request.")
+		log.Printf("Node registered in consul, denying request. %v", request)
 		response.JsonMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
