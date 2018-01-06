@@ -14,25 +14,48 @@ func readConfig() *viper.Viper {
 	cfg := viper.New()
 	cfg.SetConfigName("credmanager")
 	cfg.AddConfigPath(".")
+	cfg.AddConfigPath("/etc/credmanager/")
 	cfg.ReadInConfig()
 	return cfg
 }
 
 func getConsulClient(cfg *viper.Viper) (*consul.Client, error) {
+	if cfg.InConfig("consul") {
+		cfg = cfg.Sub("consul")
+	} else {
+		cfg = viper.New()
+	}
+
 	config := consul.DefaultConfig()
-	config.Address = cfg.GetString("consul.address")
-	config.Token = cfg.GetString("consul.token")
+	if cfg.InConfig("address") {
+		config.Address = cfg.GetString("address")
+	}
+	if cfg.InConfig("token") {
+		config.Token = cfg.GetString("token")
+	}
+
 	return consul.NewClient(config)
 }
 
 func getVaultClient(cfg *viper.Viper) (*vault.Client, error) {
+	if cfg.InConfig("vault") {
+		cfg = cfg.Sub("vault")
+	} else {
+		cfg = viper.New()
+	}
+
 	config := vault.DefaultConfig()
-	config.Address = cfg.GetString("vault.address")
+	if cfg.InConfig("address") {
+		config.Address = cfg.GetString("address")
+	}
+
 	vaultClient, err := vault.NewClient(config)
 	if err != nil {
 		return nil, err
 	}
-	vaultClient.SetToken(cfg.GetString("vault.token"))
+	if cfg.InConfig("token") {
+		vaultClient.SetToken(cfg.GetString("token"))
+	}
 	return vaultClient, nil
 }
 
