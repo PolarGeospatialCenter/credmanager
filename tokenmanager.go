@@ -11,15 +11,18 @@ import (
 
 type TokenManager struct {
 	vault          *vault.Client
+	roleName       string
 	policyTemplate string
 }
 
-func NewTokenManager(vault *vault.Client, policyTemplate string) *TokenManager {
+func NewTokenManager(vault *vault.Client, policyTemplate string, roleName string) *TokenManager {
 	m := &TokenManager{}
 	m.vault = vault
 	m.policyTemplate = policyTemplate
+	m.roleName = roleName
+	createEndpoint := fmt.Sprintf("auth/token/create/%s", m.roleName)
 	m.vault.SetWrappingLookupFunc(func(op, path string) string {
-		if op == "POST" && path == "auth/token/create-orphan" {
+		if op == "POST" && path == createEndpoint {
 			return "5m"
 		} else {
 			return ""
@@ -58,9 +61,12 @@ func (m *TokenManager) CreateNodeToken(node *inventorytypes.InventoryNode) (stri
 	}
 
 	tokenRequest := vault.TokenCreateRequest{Policies: []string{m.nodePolicyName(node)}}
-	secret, err := m.vault.Auth().Token().CreateOrphan(&tokenRequest)
+	secret, err := m.vault.Auth().Token().CreateWithRole(&tokenRequest, m.roleName)
 	if err != nil {
 		return "", err
+	}
+	if secret.WrapInfo == nil {
+		return "", fmt.Errorf("no wrapped token issued, probably a bug related to the wrapped token creation endpoint")
 	}
 	return secret.WrapInfo.Token, nil
 }

@@ -32,8 +32,12 @@ func getTestCredmanagerHandler(ctx context.Context) (*CredmanagerHandler, error)
 		return nil, err
 	}
 	vaultClient.SetToken(vaultTestRootToken)
+	err = createVaultTokenRole(vaultClient, "credmanager", issuerRole)
+	if err != nil {
+		return nil, err
+	}
 	policyTemplate := `path "/secret/{{.Node.InventoryID}}" { capabilities = ["read"] }`
-	return NewCredmanagerHandler(store, consulClient, NewTokenManager(vaultClient, policyTemplate)), nil
+	return NewCredmanagerHandler(store, consulClient, NewTokenManager(vaultClient, policyTemplate, "credmanager")), nil
 }
 
 func TestValidNode(t *testing.T) {

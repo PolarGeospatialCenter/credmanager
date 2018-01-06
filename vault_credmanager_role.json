@@ -1,0 +1,8 @@
+{
+  "allowed_policies": "credmanager-pgc-dc-dhcp",
+  "explicit_max_ttl": 0,
+  "name": "credmanager",
+  "orphan": false,
+  "period": 259200,
+  "renewable": true
+}
