@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"time"
 
@@ -60,6 +61,7 @@ func RunConsul(ctx context.Context) *consul.Config {
 }
 
 func RunVault(ctx context.Context) *vault.Config {
+	os.Setenv("VAULT_TOKEN", vaultTestRootToken)
 	port := serviceRandomSrc.Int() % 10000
 	listenAddress := fmt.Sprintf("127.0.0.1:%d", 8200+port)
 	go func() {

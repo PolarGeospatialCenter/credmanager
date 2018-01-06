@@ -16,7 +16,6 @@ func TestCreateNodePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
-	vaultClient.SetToken(vaultTestRootToken)
 
 	err = createVaultTokenRole(vaultClient, "credmanager", issuerRole)
 	if err != nil {
