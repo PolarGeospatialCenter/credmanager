@@ -57,7 +57,6 @@ func ValidTokenFormat(token string) bool {
 type CredManagerClient struct {
 	ServerUrl  string `mapstructure:"server_url"`
 	TokenFile  string `mapstructure:"token_file"`
-	Hostname   string `mapstructure:"hostname"`
 	unwrapper  TokenUnwrapper
 	httpClient HTTPClient
 }
@@ -80,13 +79,13 @@ func (cm *CredManagerClient) SetTokenUnwrapper(unwrapper TokenUnwrapper) {
 	cm.unwrapper = unwrapper
 }
 
-func (cm *CredManagerClient) GetToken() (string, error) {
+func (cm *CredManagerClient) GetToken(tokenRequest *credmanagertypes.TokenRequest) (string, error) {
 	// Do we have an unwrapped token stored already?
 	if tokenString, err := cm.loadToken(); err == nil {
 		return tokenString, nil
 	}
 
-	wrappingTokenString, err := cm.requestToken()
+	wrappingTokenString, err := cm.requestToken(tokenRequest)
 	if err != nil {
 		return "", err
 	}
@@ -108,8 +107,7 @@ func (cm *CredManagerClient) GetToken() (string, error) {
 	return tokenString, cm.saveToken(tokenString)
 }
 
-func (cm *CredManagerClient) requestToken() (string, error) {
-	tokenRequest := &credmanagertypes.TokenRequest{Hostname: cm.Hostname}
+func (cm *CredManagerClient) requestToken(tokenRequest *credmanagertypes.TokenRequest) (string, error) {
 	body, err := json.Marshal(tokenRequest)
 	if err != nil {
 		return "", ErrClientError{fmt.Errorf("error marshaling request: %v", err)}
