@@ -18,7 +18,8 @@ type CredmanagerResponse struct {
 	http.ResponseWriter
 }
 
-func (response *CredmanagerResponse) JsonMessage(status int, msg string) {
+// JSONMessage writes a json response with the specified StatusCode and message
+func (response *CredmanagerResponse) JSONMessage(status int, msg string) {
 	response.WriteHeader(status)
 	response.Header().Set("Content-Type", "application/json")
 	data := &struct {
@@ -33,11 +34,13 @@ func (response *CredmanagerResponse) JsonMessage(status int, msg string) {
 	response.Write(body)
 }
 
+// SendToken returns a TokenResponse to the client
 func (response *CredmanagerResponse) SendToken(token string) error {
 	data, err := json.Marshal(&types.TokenResponse{Token: token})
 	if err != nil {
 		return err
 	}
+
 	response.WriteHeader(http.StatusCreated)
 	response.Header().Set("Content-Type", "application/json")
 	response.Write(data)
@@ -51,6 +54,7 @@ type CredmanagerHandler struct {
 	tokenManager *TokenManager
 }
 
+// NewCredmanagerHandler builds a new CredmanagerHandler
 func NewCredmanagerHandler(store inventory.InventoryStore, consul *consul.Client, tm *TokenManager) *CredmanagerHandler {
 	m := &CredmanagerHandler{}
 	m.store = store
@@ -119,59 +123,59 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := &CredmanagerResponse{w}
 	request := &types.TokenRequest{}
 	if r.Method != "POST" {
-		response.JsonMessage(http.StatusMethodNotAllowed, "Method not allowed")
+		response.JSONMessage(http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		log.Printf("Unable to split request RemoteAddr address:port string : %v", err)
-		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
+		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
-	src_ip := net.ParseIP(host)
+	srcIP := net.ParseIP(host)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		response.JsonMessage(http.StatusInternalServerError, "An error ocurred")
+		response.JSONMessage(http.StatusInternalServerError, "An error ocurred")
 	}
 
 	err = json.Unmarshal(body, request)
 	if err != nil {
-		response.JsonMessage(http.StatusBadRequest, "Request not formatted properly")
+		response.JSONMessage(http.StatusBadRequest, "Request not formatted properly")
 		return
 	}
 
 	// Is the request from a known host?
-	if !m.requestFromValidNode(request, src_ip) {
-		log.Printf("Request from invalid node or wrong source (%s): %v", src_ip, request)
-		response.JsonMessage(http.StatusForbidden, "Request not allowed")
+	if !m.requestFromValidNode(request, srcIP) {
+		log.Printf("Request from invalid node or wrong source (%s): %v", srcIP, request)
+		response.JSONMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
 
 	if m.nodeRegisteredInConsul(request) {
 		log.Printf("Node registered in consul, denying request. %v", request)
-		response.JsonMessage(http.StatusForbidden, "Request not allowed")
+		response.JSONMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
 
 	node, err := m.getNode(request)
 	if err != nil {
 		log.Printf("Unable to get node: %v", err)
-		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
+		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
 
 	token, err := m.tokenManager.CreateNodeToken(node)
 	if err != nil {
 		log.Printf("Unable to create token: %v", err)
-		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
+		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
 
 	err = response.SendToken(token)
 	if err != nil {
 		log.Printf("Unable to send token response: %v", err)
-		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
+		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
 }

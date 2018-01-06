@@ -9,12 +9,14 @@ import (
 	inventorytypes "github.umn.edu/pgc-devops/inventory-ingest/inventory/types"
 )
 
+// TokenManager Handles the issuing of tokens
 type TokenManager struct {
 	vault          *vault.Client
 	roleName       string
 	policyTemplate string
 }
 
+// NewTokenManager returns a new token manager
 func NewTokenManager(vault *vault.Client, policyTemplate string, roleName string) *TokenManager {
 	m := &TokenManager{}
 	m.vault = vault
@@ -24,9 +26,8 @@ func NewTokenManager(vault *vault.Client, policyTemplate string, roleName string
 	m.vault.SetWrappingLookupFunc(func(op, path string) string {
 		if op == "POST" && path == createEndpoint {
 			return "5m"
-		} else {
-			return ""
 		}
+		return ""
 	})
 	return m
 }
@@ -54,6 +55,7 @@ func (m *TokenManager) nodePolicyName(node *inventorytypes.InventoryNode) string
 	return fmt.Sprintf("credmanager-%s", node.ID())
 }
 
+// CreateNodeToken returns a token for a given node
 func (m *TokenManager) CreateNodeToken(node *inventorytypes.InventoryNode) (string, error) {
 	err := m.createNodePolicy(node)
 	if err != nil {
