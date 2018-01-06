@@ -48,6 +48,12 @@ func TestValidNode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
 	}
+
+	// This node doesn't exist, so should fail.
+	if h.requestFromValidNode(&types.TokenRequest{Hostname: "bad-node"}, net.ParseIP("127.0.0.1")) {
+		t.Fatalf("Request from invalid node accepted.")
+	}
+
 	// The IP address of the node in the sample inventory is not 127.0.0.1, so this should fail
 	if h.requestFromValidNode(&types.TokenRequest{Hostname: nodes["sample0001"].Hostname}, net.ParseIP("127.0.0.1")) {
 		t.Fatalf("Request from invalid node accepted.")

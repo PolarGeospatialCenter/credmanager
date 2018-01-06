@@ -71,11 +71,25 @@ func (m *CredmanagerHandler) getNode(tr *types.TokenRequest) (*inventorytypes.In
 // RequestFromValidNode returns true if and only if r 'from' a node in the InventoryStore
 func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest, src net.IP) bool {
 	if tr == nil || src == nil {
+		log.Printf("Unable to verify node, missing either request or source IP")
 		return false
 	}
 
 	node, err := m.getNode(tr)
 	if err != nil {
+		log.Printf("No matching node found for request: %v, error was: %v", tr, err)
+		nodes, err := m.store.Nodes()
+		if err == nil {
+			nodelist := make([]string, len(nodes))
+			i := 0
+			for _, node := range nodes {
+				nodelist[i] = node.Hostname
+				i++
+			}
+			log.Printf("Nodes found: %v", nodelist)
+		} else {
+			log.Printf("Unable to lookup any nodes: %v", err)
+		}
 		return false
 	}
 
@@ -84,6 +98,7 @@ func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest, src ne
 			return true
 		}
 	}
+	log.Printf("Unable to find %s in list of node IPs %v", src, node.IPs())
 
 	return false
 }
