@@ -17,18 +17,31 @@ var serviceRandomSrc = rand.New(rand.NewSource(time.Now().UnixNano()))
 const vaultTestRootToken = "701432d1-00e7-7c94-10c4-8450ab3c4b31"
 
 var (
-	issuerPolicy = `path "auth/token/create/credmanager" {
-  capabilities = ["update"]
+	issuerPolicy = `path "auth/token/roles/credmanager-*" {
+  capabilities = ["read"]
 }
 
-path "sys/policy/credmanager-*" {
-	capabilities = ["read", "create", "update"]
+path "auth/token/create/credmanager-*" {
+	capabilities = ["update"]
 }`
 	// Role used to issue tokens.  Setting the period to 1 forces the ttl to 1s for the tokens.
 	issuerRole = map[string]interface{}{
-		"allowed_policies": "credmanager-sample0001",
+		"allowed_policies": "credmanager-bar-worker",
 		"explicit_max_ttl": 0,
 		"name":             "credmanager",
+		"orphan":           false,
+		"period":           1,
+		"renewable":        true,
+	}
+
+	testClientPolicy = `path "secret/bar-worker-cert" {
+	capabilities = ["read"]
+}`
+
+	testClientRole = map[string]interface{}{
+		"allowed_policies": "bar-worker-ssh-cert",
+		"explicit_max_ttl": 0,
+		"name":             "credmanager-bar-worker",
 		"orphan":           false,
 		"period":           1,
 		"renewable":        true,
@@ -44,6 +57,29 @@ func createVaultTokenRole(vaultClient *vault.Client, roleName string, roleData m
 	}
 	if response.Error() != nil {
 		return response.Error()
+	}
+	return nil
+}
+
+func loadVaultPolicyData(vaultClient *vault.Client) error {
+	err := createVaultTokenRole(vaultClient, "credmanager", issuerRole)
+	if err != nil {
+		return fmt.Errorf("Unable to create credmanager role: %v", err)
+	}
+
+	err = vaultClient.Sys().PutPolicy("issuer", issuerPolicy)
+	if err != nil {
+		return fmt.Errorf("Unable to create issuer policy: %v", err)
+	}
+
+	err = vaultClient.Sys().PutPolicy("bar-worker-ssh-cert", testClientPolicy)
+	if err != nil {
+		return fmt.Errorf("Unable to create test client policy: %v", err)
+	}
+
+	err = createVaultTokenRole(vaultClient, "credmanager-bar-worker", testClientRole)
+	if err != nil {
+		return fmt.Errorf("Unable to create test client role: %v", err)
 	}
 	return nil
 }
@@ -71,5 +107,6 @@ func RunVault(ctx context.Context) *vault.Config {
 	config := vault.DefaultConfig()
 	config.Address = fmt.Sprintf("http://%s", listenAddress)
 	time.Sleep(100 * time.Millisecond)
+
 	return config
 }

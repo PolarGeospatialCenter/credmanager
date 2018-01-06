@@ -8,60 +8,6 @@ import (
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 )
 
-func TestCreateNodePolicy(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	vaultConfig := RunVault(ctx)
-	vaultClient, err := vault.NewClient(vaultConfig)
-	if err != nil {
-		t.Fatalf("Unable to create vault client: %v", err)
-	}
-
-	err = createVaultTokenRole(vaultClient, "credmanager", issuerRole)
-	if err != nil {
-		t.Fatalf("Unable to create credmanager role: %v", err)
-	}
-
-	err = vaultClient.Sys().PutPolicy("issuer", issuerPolicy)
-	if err != nil {
-		t.Fatalf("Unable to create issuer policy: %v", err)
-	}
-
-	secret, err := vaultClient.Auth().Token().CreateOrphan(&vault.TokenCreateRequest{Policies: []string{"issuer"}})
-	if err != nil {
-		t.Fatalf("Unable to create issuer token: %v", err)
-	}
-
-	vaultClient.SetToken(secret.Auth.ClientToken)
-
-	cfg := readConfig()
-	policyTemplate := cfg.GetString("vault.policy.template")
-	tokenManager := NewTokenManager(vaultClient, policyTemplate, "credmanager")
-
-	store, _ := inventory.NewSampleInventoryStore()
-	nodes, _ := store.Nodes()
-	node := nodes["sample0001"]
-	err = tokenManager.createNodePolicy(node)
-	if err != nil {
-		t.Fatalf("Unable to create node policy: %v", err)
-	}
-
-	policy, err := vaultClient.Sys().GetPolicy(tokenManager.nodePolicyName(node))
-	if err != nil {
-		t.Fatalf("Policy not found after creation: %v", err)
-	}
-
-	policyString, err := tokenManager.renderNodePolicy(node)
-	if err != nil {
-		t.Fatalf("Unable to render node policy template: %v", err)
-	}
-
-	if len(policy) == 0 || policy != policyString {
-		t.Fatalf("Retrieved policy doesn't match template: %v", err)
-	}
-
-}
-
 func TestCreateNodeToken(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -71,14 +17,9 @@ func TestCreateNodeToken(t *testing.T) {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
 
-	err = createVaultTokenRole(vaultClient, "credmanager", issuerRole)
+	err = loadVaultPolicyData(vaultClient)
 	if err != nil {
-		t.Fatalf("Unable to create credmanager role: %v", err)
-	}
-
-	err = vaultClient.Sys().PutPolicy("issuer", issuerPolicy)
-	if err != nil {
-		t.Fatalf("Unable to create issuer policy: %v", err)
+		t.Fatalf("Unable to setup vault policies: %v", err)
 	}
 
 	secret, err := vaultClient.Auth().Token().CreateOrphan(&vault.TokenCreateRequest{Policies: []string{"issuer"}})
@@ -88,18 +29,49 @@ func TestCreateNodeToken(t *testing.T) {
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	cfg := readConfig()
-	policyTemplate := cfg.GetString("vault.policy.template")
-	tokenManager := NewTokenManager(vaultClient, policyTemplate, "credmanager")
+	tokenManager := NewTokenManager(vaultClient)
 
 	store, _ := inventory.NewSampleInventoryStore()
 	nodes, _ := store.Nodes()
 	node := nodes["sample0001"]
 
-	token, err := tokenManager.CreateNodeToken(node)
+	token, err := tokenManager.CreateNodeToken(node, []string{"bar-worker-ssh-cert"})
 	if err != nil {
 		t.Errorf("Unable to create token: %v", err)
 	}
 	t.Logf("Token: %s", token)
 
+}
+
+func TestLookupTokenRole(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	vaultConfig := RunVault(ctx)
+	vaultClient, err := vault.NewClient(vaultConfig)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+
+	err = loadVaultPolicyData(vaultClient)
+	if err != nil {
+		t.Fatalf("Unable to setup vault policies: %v", err)
+	}
+
+	secret, err := vaultClient.Auth().Token().CreateOrphan(&vault.TokenCreateRequest{Policies: []string{"issuer"}})
+	if err != nil {
+		t.Fatalf("Unable to create issuer token: %v", err)
+	}
+
+	vaultClient.SetToken(secret.Auth.ClientToken)
+
+	tokenManager := NewTokenManager(vaultClient)
+
+	roleData, err := tokenManager.lookupTokenRole("credmanager-bar-worker")
+	if err != nil {
+		t.Fatalf("Unable to lookup role: %v", err)
+	}
+
+	if name, ok := roleData["name"].(string); !ok || name != "credmanager-bar-worker" {
+		t.Errorf("Invalid object returned from role lookup or name didn't match")
+	}
 }
