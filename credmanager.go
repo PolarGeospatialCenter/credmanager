@@ -124,7 +124,7 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		log.Printf("Unable to split request RemoteAddr address:port string : %v")
+		log.Printf("Unable to split request RemoteAddr address:port string : %v", err)
 		response.JsonMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
