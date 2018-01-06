@@ -51,7 +51,7 @@ func (m *TokenManager) createNodePolicy(node *inventorytypes.InventoryNode) erro
 }
 
 func (m *TokenManager) nodePolicyName(node *inventorytypes.InventoryNode) string {
-	return fmt.Sprintf("credmanager-policy-%s", node.ID())
+	return fmt.Sprintf("credmanager-%s", node.ID())
 }
 
 func (m *TokenManager) CreateNodeToken(node *inventorytypes.InventoryNode) (string, error) {
