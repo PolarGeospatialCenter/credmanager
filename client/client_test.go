@@ -59,8 +59,9 @@ func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
 
 func TestRequestToken(t *testing.T) {
 	cm := &CredManagerClient{Hostname: "sample-0-0"}
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
 
-	token, err := cm.requestToken(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
+	token, err := cm.requestToken()
 	if err != nil {
 		t.Errorf("Request failed: %v", err)
 	}
@@ -69,22 +70,26 @@ func TestRequestToken(t *testing.T) {
 		t.Errorf("Wrong token returned: %s", token)
 	}
 
-	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7sdfs"}})
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7sdfs"}})
+	_, err = cm.requestToken()
 	if err != ErrBadResponse {
 		t.Errorf("Bad token accepted as valid or other error: %v", err)
 	}
 
-	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusInternalServerError})
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusInternalServerError})
+	_, err = cm.requestToken()
 	if err != ErrServerError {
 		t.Errorf("Request didn't return a server error as expected, actual error: %v", err)
 	}
 
-	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusBadGateway})
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusBadGateway})
+	_, err = cm.requestToken()
 	if err.Error() != "server returned an unexpected error: 502 Bad Gateway" {
 		t.Errorf("Wrong error returned for unhandled responses: %v", err)
 	}
 
-	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusForbidden})
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusForbidden})
+	_, err = cm.requestToken()
 	if err != ErrTokenRequestDenied {
 		t.Errorf("Request didn't return token request denied error as expected, actual err: %v", err)
 	}
@@ -150,9 +155,10 @@ func TestGetToken(t *testing.T) {
 
 	// our fake api server should return a valid token to simulate a wrapping token
 	fakeAPIServer := &fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}}
-
 	realToken := "A89B3399-1A16-42EB-BE83-4CCDF9166884"
-	token, err := cm.GetToken(fakeAPIServer, &testUnwrapper{WrappedToken: realToken})
+	cm.SetHTTPClient(fakeAPIServer)
+	cm.SetTokenUnwrapper(&testUnwrapper{WrappedToken: realToken})
+	token, err := cm.GetToken()
 	if err != nil {
 		t.Fatalf("An error ocurred while getting the token: %v", err)
 	}
@@ -163,7 +169,9 @@ func TestGetToken(t *testing.T) {
 
 	// tempfile should exist now, reloading
 	badToken := "BADB3399-1A16-42EB-BE83-4CCDF9166884"
-	token, err = cm.GetToken(fakeAPIServer, &testUnwrapper{WrappedToken: badToken})
+	cm.SetHTTPClient(fakeAPIServer)
+	cm.SetTokenUnwrapper(&testUnwrapper{WrappedToken: badToken})
+	token, err = cm.GetToken()
 	if err != nil {
 		t.Fatalf("An error ocurred while getting the token from file: %v", err)
 	}

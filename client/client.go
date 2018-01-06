@@ -55,23 +55,47 @@ func ValidTokenFormat(token string) bool {
 // CredManagerClient retrieves a vault token from a credmanager api server and
 // stores it locally so that it can be used as long as it remains valid.
 type CredManagerClient struct {
-	ServerUrl string `mapstructure:"server_url"`
-	TokenFile string `mapstructure:"token_file"`
-	Hostname  string `mapstructure:"hostname"`
+	ServerUrl  string `mapstructure:"server_url"`
+	TokenFile  string `mapstructure:"token_file"`
+	Hostname   string `mapstructure:"hostname"`
+	unwrapper  TokenUnwrapper
+	httpClient HTTPClient
 }
 
-func (cm *CredManagerClient) GetToken(httpClient HTTPClient, unwrapper TokenUnwrapper) (string, error) {
+// SetHTTPClient sets the http client to use
+func (cm *CredManagerClient) SetHTTPClient(client HTTPClient) {
+	cm.httpClient = client
+}
+
+func (cm *CredManagerClient) getHTTPClient() HTTPClient {
+	if cm.httpClient == nil {
+		cm.httpClient = &http.Client{}
+	}
+	return cm.httpClient
+}
+
+// SetTokenUnwrapper sets the token unwrapper to use.
+// NOTE: github.com/hashicorp/vault/api.Logical is a valid unwrapper
+func (cm *CredManagerClient) SetTokenUnwrapper(unwrapper TokenUnwrapper) {
+	cm.unwrapper = unwrapper
+}
+
+func (cm *CredManagerClient) GetToken() (string, error) {
 	// Do we have an unwrapped token stored already?
 	if tokenString, err := cm.loadToken(); err == nil {
 		return tokenString, nil
 	}
 
-	wrappingTokenString, err := cm.requestToken(httpClient)
+	wrappingTokenString, err := cm.requestToken()
 	if err != nil {
 		return "", err
 	}
 
-	secret, err := unwrapper.Unwrap(wrappingTokenString)
+	if cm.unwrapper == nil {
+		return "", fmt.Errorf("token unwrapper not set and need to unwrap token")
+	}
+
+	secret, err := cm.unwrapper.Unwrap(wrappingTokenString)
 	if err != nil {
 		log.Fatalf("Unable to unwrap token %s\n", err)
 	}
@@ -84,7 +108,7 @@ func (cm *CredManagerClient) GetToken(httpClient HTTPClient, unwrapper TokenUnwr
 	return tokenString, cm.saveToken(tokenString)
 }
 
-func (cm *CredManagerClient) requestToken(httpClient HTTPClient) (string, error) {
+func (cm *CredManagerClient) requestToken() (string, error) {
 	tokenRequest := &credmanagertypes.TokenRequest{Hostname: cm.Hostname}
 	body, err := json.Marshal(tokenRequest)
 	if err != nil {
@@ -94,7 +118,7 @@ func (cm *CredManagerClient) requestToken(httpClient HTTPClient) (string, error)
 	if err != nil {
 		return "", ErrClientError{fmt.Errorf("error creating credmanager request: %v", err)}
 	}
-	response, err := httpClient.Do(r)
+	response, err := cm.getHTTPClient().Do(r)
 	if err != nil {
 		return "", ErrClientError{fmt.Errorf("error making http request to credmanager server: %v", err)}
 	}
