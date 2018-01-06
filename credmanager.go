@@ -118,6 +118,10 @@ func (m *CredmanagerHandler) nodeRegisteredInConsul(tr *types.TokenRequest) bool
 func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := &CredmanagerResponse{w}
 	request := &types.TokenRequest{}
+	if r.Method != "POST" {
+		response.JsonMessage(http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		log.Printf("Unable to split request RemoteAddr address:port string : %v")
