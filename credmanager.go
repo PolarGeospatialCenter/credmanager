@@ -145,7 +145,7 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Is the request from a known host?
 	if !m.requestFromValidNode(request, srcIP) {
 		log.Printf("Request from invalid node or wrong source (%s): %v", srcIP, request)
-		response.JSONMessage(http.StatusForbidden, "Request not allowed")
+		response.JSONMessage(http.StatusForbidden, "Request not allowed: invalid source")
 		return
 	}
 
@@ -162,8 +162,14 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := m.tokenManager.CreateNodeToken(node)
-	if err != nil {
+	token, err := m.tokenManager.CreateNodeToken(node, request.Policies)
+	switch err {
+	case nil:
+	case ErrPolicyMismatch:
+		log.Printf("Requested policies %s don't match those allowed for %s", request.Policies, node)
+		response.JSONMessage(http.StatusBadRequest, "Bad policy list")
+		return
+	default:
 		log.Printf("Unable to create token: %v", err)
 		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
