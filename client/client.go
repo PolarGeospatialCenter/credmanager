@@ -99,7 +99,7 @@ func (cm *CredManagerClient) requestToken(httpClient HTTPClient) (string, error)
 		return "", ErrClientError{fmt.Errorf("error making http request to credmanager server: %v", err)}
 	}
 	switch response.StatusCode {
-	case http.StatusOK:
+	case http.StatusCreated:
 		tokenResponse := &credmanagertypes.TokenResponse{}
 		responseBody, err := ioutil.ReadAll(response.Body)
 		if err != nil {

@@ -41,7 +41,7 @@ type fakeHTTPClient struct {
 func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
 	switch f.Status {
-	case http.StatusOK:
+	case http.StatusCreated:
 		w.WriteHeader(f.Status)
 		w.Header().Set("Content-type", "application/json")
 		body, err := json.Marshal(f.TokenResponse)
@@ -60,7 +60,7 @@ func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
 func TestRequestToken(t *testing.T) {
 	cm := &CredManagerClient{Hostname: "sample-0-0"}
 
-	token, err := cm.requestToken(&fakeHTTPClient{Status: http.StatusOK, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
+	token, err := cm.requestToken(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
 	if err != nil {
 		t.Errorf("Request failed: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestRequestToken(t *testing.T) {
 		t.Errorf("Wrong token returned: %s", token)
 	}
 
-	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusOK, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7sdfs"}})
+	_, err = cm.requestToken(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7sdfs"}})
 	if err != ErrBadResponse {
 		t.Errorf("Bad token accepted as valid or other error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestGetToken(t *testing.T) {
 	cm := &CredManagerClient{TokenFile: tempFile.Name(), Hostname: "sample-0-0"}
 
 	// our fake api server should return a valid token to simulate a wrapping token
-	fakeAPIServer := &fakeHTTPClient{Status: http.StatusOK, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}}
+	fakeAPIServer := &fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}}
 
 	realToken := "A89B3399-1A16-42EB-BE83-4CCDF9166884"
 	token, err := cm.GetToken(fakeAPIServer, &testUnwrapper{WrappedToken: realToken})
