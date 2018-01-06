@@ -139,7 +139,19 @@ func (cm *CredManagerClient) requestToken(tokenRequest *credmanagertypes.TokenRe
 	case http.StatusForbidden:
 		return "", ErrTokenRequestDenied
 	case http.StatusBadRequest:
-		return "", ErrClientError{fmt.Errorf("bad request")}
+		// try to unmarshal json body
+		responseBody, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return "", ErrBadResponse
+		}
+
+		errResponse := &credmanagertypes.CredmanagerErrorResponse{}
+		err = json.Unmarshal(responseBody, errResponse)
+		if err != nil {
+			return "", ErrBadResponse
+		}
+
+		return "", fmt.Errorf("our request was bad: %s", errResponse.Message)
 	case http.StatusInternalServerError:
 		return "", ErrServerError
 	default:

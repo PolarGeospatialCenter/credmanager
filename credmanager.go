@@ -9,6 +9,7 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	"github.umn.edu/pgc-devops/credmanager-api/types"
+	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 	inventorytypes "github.umn.edu/pgc-devops/inventory-ingest/inventory/types"
 )
@@ -22,11 +23,7 @@ type CredmanagerResponse struct {
 func (response *CredmanagerResponse) JSONMessage(status int, msg string) {
 	response.WriteHeader(status)
 	response.Header().Set("Content-Type", "application/json")
-	data := &struct {
-		Msg string
-	}{
-		Msg: msg,
-	}
+	data := &credmanagertypes.CredmanagerErrorResponse{Message: msg}
 	body, err := json.Marshal(data)
 	if err != nil {
 		return
