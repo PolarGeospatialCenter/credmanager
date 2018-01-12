@@ -10,6 +10,7 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"github.umn.edu/pgc-devops/credmanager-api/types"
 	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
+	"github.umn.edu/pgc-devops/credmanager-api/vaultstate"
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 	inventorytypes "github.umn.edu/pgc-devops/inventory-ingest/inventory/types"
 )
@@ -49,14 +50,16 @@ type CredmanagerHandler struct {
 	store        inventory.InventoryStore
 	consul       *consul.Client
 	tokenManager *TokenManager
+	nodeState    *vaultstate.VaultStateManager
 }
 
 // NewCredmanagerHandler builds a new CredmanagerHandler
-func NewCredmanagerHandler(store inventory.InventoryStore, consul *consul.Client, tm *TokenManager) *CredmanagerHandler {
+func NewCredmanagerHandler(store inventory.InventoryStore, consul *consul.Client, tm *TokenManager, vaultState *vaultstate.VaultStateManager) *CredmanagerHandler {
 	m := &CredmanagerHandler{}
 	m.store = store
 	m.consul = consul
 	m.tokenManager = tm
+	m.nodeState = vaultState
 	return m
 }
 
@@ -104,16 +107,8 @@ func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest, src ne
 	return false
 }
 
-func (m *CredmanagerHandler) nodeRegisteredInConsul(tr *types.TokenRequest) bool {
-	node, err := m.getNode(tr)
-	if err != nil {
-		return false
-	}
-	consulNode, _, err := m.consul.Catalog().Node(node.Hostname, &consul.QueryOptions{})
-	if err != nil {
-		return false
-	}
-	return consulNode != nil
+func (m *CredmanagerHandler) nodeEnabled(node *inventorytypes.InventoryNode) bool {
+	return m.nodeState.Active(node.ID())
 }
 
 func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -149,16 +144,16 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if m.nodeRegisteredInConsul(request) {
-		log.Printf("Node registered in consul, denying request. %v", request)
-		response.JSONMessage(http.StatusForbidden, "Request not allowed")
-		return
-	}
-
 	node, err := m.getNode(request)
 	if err != nil {
 		log.Printf("Unable to get node: %v", err)
 		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
+		return
+	}
+
+	if !m.nodeEnabled(node) {
+		log.Printf("Node not marked as bootable, denying request. %v", request)
+		response.JSONMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
 

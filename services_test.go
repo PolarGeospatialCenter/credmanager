@@ -23,7 +23,12 @@ var (
 
 path "auth/token/create/credmanager-*" {
 	capabilities = ["update"]
-}`
+}
+
+path "secret/nodes/bootable/*" {
+	capabilities = ["read"]
+}
+`
 	// Role used to issue tokens.  Setting the period to 1 forces the ttl to 1s for the tokens.
 	issuerRole = map[string]interface{}{
 		"allowed_policies": "credmanager-bar-worker",

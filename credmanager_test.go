@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	consul "github.com/hashicorp/consul/api"
 	vault "github.com/hashicorp/vault/api"
 	"github.umn.edu/pgc-devops/credmanager-api/types"
+	"github.umn.edu/pgc-devops/credmanager-api/vaultstate"
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 )
 
@@ -46,7 +48,7 @@ func getTestCredmanagerHandler(ctx context.Context) (*CredmanagerHandler, error)
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	return NewCredmanagerHandler(store, consulClient, NewTokenManager(vaultClient)), nil
+	return NewCredmanagerHandler(store, consulClient, NewTokenManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), nil
 }
 
 func TestValidNode(t *testing.T) {
@@ -77,7 +79,7 @@ func TestValidNode(t *testing.T) {
 	}
 }
 
-func TestNodeRegisteredInConsul(t *testing.T) {
+func TestCredmanagerNodeEnabled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	h, err := getTestCredmanagerHandler(ctx)
@@ -85,13 +87,40 @@ func TestNodeRegisteredInConsul(t *testing.T) {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
 
-	if !h.nodeRegisteredInConsul(&types.TokenRequest{Hostname: "bar-ab00-02"}) {
-		t.Errorf("Registered node returned false")
+	vaultClient := h.tokenManager.vault
+	_ = vaultClient
+	nodes, _ := h.store.Nodes()
+
+	//both sample nodes should fail at first
+	for _, node := range nodes {
+		if h.nodeEnabled(node) {
+			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node.ID())
+		}
+		// Activate node
+		myToken := vaultClient.Token()
+		vaultClient.SetToken(vaultTestRootToken)
+		err := h.nodeState.Activate(node.ID(), time.Second)
+		if err != nil {
+			t.Errorf("Unable to activate node: %v", err)
+		}
+		vaultClient.SetToken(myToken)
 	}
 
-	if h.nodeRegisteredInConsul(&types.TokenRequest{Hostname: "bar-ab01-02"}) {
-		t.Errorf("Unregistered node returned true")
+	time.Sleep(5 * time.Millisecond)
+	for _, node := range nodes {
+		if !h.nodeEnabled(node) {
+			t.Errorf("Check for whether node is enabled returned false instead of true: %s", node.ID())
+		}
 	}
+
+	time.Sleep(time.Second)
+
+	for _, node := range nodes {
+		if h.nodeEnabled(node) {
+			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node.ID())
+		}
+	}
+
 }
 
 func TestCredmanagerHandler(t *testing.T) {
@@ -105,6 +134,17 @@ func TestCredmanagerHandler(t *testing.T) {
 	nodes, err := h.store.Nodes()
 	if err != nil {
 		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
+	}
+
+	vaultClient := h.tokenManager.vault
+	for _, node := range nodes {
+		myToken := vaultClient.Token()
+		vaultClient.SetToken(vaultTestRootToken)
+		err := h.nodeState.Activate(node.ID(), time.Second)
+		if err != nil {
+			t.Errorf("Unable to activate node: %v", err)
+		}
+		vaultClient.SetToken(myToken)
 	}
 
 	body, err := json.Marshal(&types.TokenRequest{Hostname: nodes["sample0001"].Hostname, Policies: []string{"bar-worker-ssh-cert"}})
@@ -144,6 +184,17 @@ func TestCredmanagerHandlerBadPolicyRequest(t *testing.T) {
 		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
 	}
 
+	vaultClient := h.tokenManager.vault
+	for _, node := range nodes {
+		myToken := vaultClient.Token()
+		vaultClient.SetToken(vaultTestRootToken)
+		err := h.nodeState.Activate(node.ID(), time.Second)
+		if err != nil {
+			t.Errorf("Unable to activate node: %v", err)
+		}
+		vaultClient.SetToken(myToken)
+	}
+
 	body, err := json.Marshal(&types.TokenRequest{Hostname: nodes["sample0001"].Hostname, Policies: []string{"bar-worker-ssh-cert", "disallowed-policy"}})
 	if err != nil {
 		t.Fatalf("Unable to marshal request body: %v", err)
@@ -158,6 +209,6 @@ func TestCredmanagerHandlerBadPolicyRequest(t *testing.T) {
 	h.ServeHTTP(response, request)
 	bodytext, _ := ioutil.ReadAll(response.Result().Body)
 	if response.Result().StatusCode != http.StatusBadRequest {
-		t.Fatalf("Request didn't return a 403 as expected %d: %s", response.Result().StatusCode, string(bodytext))
+		t.Fatalf("Request didn't return a 400 as expected %d: %s", response.Result().StatusCode, string(bodytext))
 	}
 }

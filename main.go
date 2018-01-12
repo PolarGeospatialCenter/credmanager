@@ -7,6 +7,7 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/viper"
+	"github.umn.edu/pgc-devops/credmanager-api/vaultstate"
 	"github.umn.edu/pgc-devops/inventory-ingest/inventory"
 )
 
@@ -77,7 +78,7 @@ func main() {
 		log.Fatalf("Unable to connect to consul inventory: %v", err)
 	}
 
-	h := NewCredmanagerHandler(consulStore, consulClient, NewTokenManager(vaultClient))
+	h := NewCredmanagerHandler(consulStore, consulClient, NewTokenManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient))
 	http.Handle("/token", h)
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
