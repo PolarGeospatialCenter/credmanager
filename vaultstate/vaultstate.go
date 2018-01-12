@@ -36,6 +36,12 @@ func (vsm *VaultStateManager) Activate(key string, ttl time.Duration) error {
 	return err
 }
 
+// Deactivate removes a key from the vault tree, thus deactivating it
+func (vsm *VaultStateManager) Deactivate(key string) error {
+	_, err := vsm.vaultClient.Logical().Delete(vsm.keyPath(key))
+	return err
+}
+
 // Active returns true if the key exists and the ttl has not expired, false otherwise
 func (vsm *VaultStateManager) Active(key string) bool {
 	secret, err := vsm.vaultClient.Logical().Read(vsm.keyPath(key))
