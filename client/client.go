@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -42,10 +41,6 @@ type HTTPClient interface {
 	Do(r *http.Request) (*http.Response, error)
 }
 
-type TokenUnwrapper interface {
-	Unwrap(string) (*vault.Secret, error)
-}
-
 // ValidTokenFormat validates the format of a vault token returns true if valid
 func ValidTokenFormat(token string) bool {
 	tokenRegexp, _ := regexp.Compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -57,7 +52,8 @@ func ValidTokenFormat(token string) bool {
 type CredManagerClient struct {
 	ServerUrl  string `mapstructure:"server_url"`
 	TokenFile  string `mapstructure:"token_file"`
-	unwrapper  TokenUnwrapper
+	RoleIDFile string `mapstructure:"role_id_file"`
+	ClientID   string `mapstructure:"client_id"`
 	httpClient HTTPClient
 }
 
@@ -73,30 +69,38 @@ func (cm *CredManagerClient) getHTTPClient() HTTPClient {
 	return cm.httpClient
 }
 
-// SetTokenUnwrapper sets the token unwrapper to use.
-// NOTE: github.com/hashicorp/vault/api.Logical is a valid unwrapper
-func (cm *CredManagerClient) SetTokenUnwrapper(unwrapper TokenUnwrapper) {
-	cm.unwrapper = unwrapper
+func (cm *CredManagerClient) GetRoleID() (string, error) {
+	contents, err := ioutil.ReadFile(cm.RoleIDFile)
+	if err != nil {
+		return "", err
+	}
+	return string(contents), nil
 }
 
-func (cm *CredManagerClient) GetToken(tokenRequest *credmanagertypes.TokenRequest) (string, error) {
+func (cm *CredManagerClient) GetToken(vaultClient *vault.Client) (string, error) {
+
+	request := &credmanagertypes.Request{ClientID: cm.ClientID}
 	// Do we have an unwrapped token stored already?
 	if tokenString, err := cm.loadToken(); err == nil {
 		return tokenString, nil
 	}
 
-	wrappingTokenString, err := cm.requestToken(tokenRequest)
+	secretID, err := cm.requestSecret(request)
 	if err != nil {
 		return "", err
 	}
 
-	if cm.unwrapper == nil {
-		return "", fmt.Errorf("token unwrapper not set and need to unwrap token")
+	roleID, err := cm.GetRoleID()
+	if err != nil {
+		return "", err
 	}
 
-	secret, err := cm.unwrapper.Unwrap(wrappingTokenString)
+	data := make(map[string]interface{})
+	data["role_id"] = roleID
+	data["secret_id"] = secretID
+	secret, err := vaultClient.Logical().Write("auth/approle/login", data)
 	if err != nil {
-		log.Fatalf("Unable to unwrap token %s\n", err)
+		return "", err
 	}
 
 	tokenString := secret.Auth.ClientToken
@@ -107,8 +111,8 @@ func (cm *CredManagerClient) GetToken(tokenRequest *credmanagertypes.TokenReques
 	return tokenString, cm.saveToken(tokenString)
 }
 
-func (cm *CredManagerClient) requestToken(tokenRequest *credmanagertypes.TokenRequest) (string, error) {
-	body, err := json.Marshal(tokenRequest)
+func (cm *CredManagerClient) requestSecret(request *credmanagertypes.Request) (string, error) {
+	body, err := json.Marshal(request)
 	if err != nil {
 		return "", ErrClientError{fmt.Errorf("error marshaling request: %v", err)}
 	}
@@ -122,7 +126,7 @@ func (cm *CredManagerClient) requestToken(tokenRequest *credmanagertypes.TokenRe
 	}
 	switch response.StatusCode {
 	case http.StatusCreated:
-		tokenResponse := &credmanagertypes.TokenResponse{}
+		tokenResponse := &credmanagertypes.Response{}
 		responseBody, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			return "", ErrClientError{fmt.Errorf("error reading response body into string: %v", err)}
@@ -132,10 +136,10 @@ func (cm *CredManagerClient) requestToken(tokenRequest *credmanagertypes.TokenRe
 			return "", ErrBadResponse
 		}
 
-		if !ValidTokenFormat(tokenResponse.Token) {
+		if !ValidTokenFormat(tokenResponse.SecretID) {
 			return "", ErrBadResponse
 		}
-		return tokenResponse.Token, nil
+		return tokenResponse.SecretID, nil
 	case http.StatusForbidden:
 		return "", ErrTokenRequestDenied
 	case http.StatusBadRequest:
