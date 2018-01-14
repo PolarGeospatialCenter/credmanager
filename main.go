@@ -79,7 +79,7 @@ func main() {
 	}
 
 	h := NewCredmanagerHandler(consulStore, NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient))
-	http.Handle("/token", h)
+	http.Handle("/secret", h)
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
