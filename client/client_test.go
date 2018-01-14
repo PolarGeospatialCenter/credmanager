@@ -1,14 +1,17 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/azenk/vaulttest"
 	vault "github.com/hashicorp/vault/api"
 	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
 )
@@ -34,8 +37,8 @@ func TestValidToken(t *testing.T) {
 }
 
 type fakeHTTPClient struct {
-	Status        int
-	TokenResponse *credmanagertypes.TokenResponse
+	Status   int
+	Response interface{}
 }
 
 func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
@@ -44,7 +47,7 @@ func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
 	case http.StatusCreated:
 		w.WriteHeader(f.Status)
 		w.Header().Set("Content-type", "application/json")
-		body, err := json.Marshal(f.TokenResponse)
+		body, err := json.Marshal(f.Response)
 		if err != nil {
 			return nil, err
 		}
@@ -57,12 +60,12 @@ func (f *fakeHTTPClient) Do(r *http.Request) (*http.Response, error) {
 	return w.Result(), nil
 }
 
-func TestRequestToken(t *testing.T) {
+func TestRequestSecret(t *testing.T) {
 	cm := &CredManagerClient{}
-	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, Response: &credmanagertypes.Response{SecretID: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}})
 
-	request := &credmanagertypes.TokenRequest{Hostname: "sample-0-0", Policies: []string{"bar-worker-ssh-cert"}}
-	token, err := cm.requestToken(request)
+	request := &credmanagertypes.Request{ClientID: "sample-0-0"}
+	token, err := cm.requestSecret(request)
 	if err != nil {
 		t.Errorf("Request failed: %v", err)
 	}
@@ -71,26 +74,26 @@ func TestRequestToken(t *testing.T) {
 		t.Errorf("Wrong token returned: %s", token)
 	}
 
-	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7sdfs"}})
-	_, err = cm.requestToken(request)
+	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusCreated, Response: &credmanagertypes.Response{SecretID: "221ECFD7sdfs"}})
+	_, err = cm.requestSecret(request)
 	if err != ErrBadResponse {
 		t.Errorf("Bad token accepted as valid or other error: %v", err)
 	}
 
 	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusInternalServerError})
-	_, err = cm.requestToken(request)
+	_, err = cm.requestSecret(request)
 	if err != ErrServerError {
 		t.Errorf("Request didn't return a server error as expected, actual error: %v", err)
 	}
 
 	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusBadGateway})
-	_, err = cm.requestToken(request)
+	_, err = cm.requestSecret(request)
 	if err.Error() != "server returned an unexpected error: 502 Bad Gateway" {
 		t.Errorf("Wrong error returned for unhandled responses: %v", err)
 	}
 
 	cm.SetHTTPClient(&fakeHTTPClient{Status: http.StatusForbidden})
-	_, err = cm.requestToken(request)
+	_, err = cm.requestSecret(request)
 	if err != ErrTokenRequestDenied {
 		t.Errorf("Request didn't return token request denied error as expected, actual err: %v", err)
 	}
@@ -134,52 +137,84 @@ func TestSaveAndLoadToken(t *testing.T) {
 	}
 }
 
-type testUnwrapper struct {
-	WrappedToken string
-}
-
-func (f *testUnwrapper) Unwrap(string) (*vault.Secret, error) {
-	return &vault.Secret{Auth: &vault.SecretAuth{ClientToken: f.WrappedToken}}, nil
-}
-
 func TestGetToken(t *testing.T) {
-	tempFile, err := ioutil.TempFile("", "testtoken")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	vaultConfig, rootToken := vaulttest.Run(ctx)
+	vaultClient, err := vault.NewClient(vaultConfig)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("Unable to create vault client: %v", err)
 	}
-	// Remove tempfile because we just need the name
-	os.Remove(tempFile.Name())
-	// Defer a second remove since we're expecting it to be created by the client
-	defer os.Remove(tempFile.Name())
 
-	cm := &CredManagerClient{TokenFile: tempFile.Name()}
+	vaultClient.SetToken(rootToken)
 
-	request := &credmanagertypes.TokenRequest{Hostname: "sample-0-0"}
+	_, err = vaultClient.Logical().Write("sys/auth/approle", map[string]interface{}{"type": "approle"})
+	if err != nil {
+		t.Fatalf("unable to enable approle backend: %v", err)
+	}
+
+	testAppRole := map[string]interface{}{
+		"policies":           []string{},
+		"explicit_max_ttl":   0,
+		"name":               "credmanager-sample0001",
+		"orphan":             false,
+		"period":             1,
+		"secret_id_num_uses": 1,
+		"secret_id_ttl":      "60s",
+		"renewable":          true,
+	}
+
+	_, err = vaultClient.Logical().Write("auth/approle/role/credmanager-sample0001", testAppRole)
+	if err != nil {
+		t.Fatalf("Unable to create approle: %v", err)
+	}
+
+	roleID := map[string]interface{}{"role_id": "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"}
+	_, err = vaultClient.Logical().Write("auth/approle/role/credmanager-sample0001/role-id", roleID)
+	if err != nil {
+		t.Fatalf("Unable to set role_id on app role: %v", err)
+	}
+
+	tempDir, err := ioutil.TempDir("", "getToken")
+	if err != nil {
+		t.Fatalf("Unable to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cm := &CredManagerClient{ClientID: "sample0001", TokenFile: filepath.Join(tempDir, "token"), RoleIDFile: filepath.Join(tempDir, "roleid")}
+
+	err = ioutil.WriteFile(cm.RoleIDFile, []byte("ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff"), 0600)
+	if err != nil {
+		t.Fatalf("Unable to write test role id to file: %v", err)
+	}
+
+	secret, err := vaultClient.Logical().Write("auth/approle/role/credmanager-sample0001/secret-id", nil)
+	if err != nil {
+		t.Fatalf("Unable to get test secret from vault: %v", err)
+	}
+
 	// our fake api server should return a valid token to simulate a wrapping token
-	fakeAPIServer := &fakeHTTPClient{Status: http.StatusCreated, TokenResponse: &credmanagertypes.TokenResponse{Token: "221ECFD7-E093-45EF-8070-E1FA284A06C0"}}
-	realToken := "A89B3399-1A16-42EB-BE83-4CCDF9166884"
+	fakeAPIServer := &fakeHTTPClient{Status: http.StatusCreated, Response: &credmanagertypes.Response{SecretID: secret.Data["secret_id"].(string)}}
 	cm.SetHTTPClient(fakeAPIServer)
-	cm.SetTokenUnwrapper(&testUnwrapper{WrappedToken: realToken})
-	token, err := cm.GetToken(request)
+	token, err := cm.GetToken(vaultClient)
 	if err != nil {
 		t.Fatalf("An error ocurred while getting the token: %v", err)
 	}
 
-	if token != realToken {
-		t.Errorf("GetToken returned an incorrect token: expected '%s', got '%s'", realToken, token)
+	if !ValidTokenFormat(token) {
+		t.Errorf("GetToken returned an invalid token string: %s", token)
 	}
 
-	// tempfile should exist now, reloading
-	badToken := "BADB3399-1A16-42EB-BE83-4CCDF9166884"
+	fakeAPIServer = &fakeHTTPClient{Status: http.StatusBadRequest, Response: &credmanagertypes.CredmanagerErrorResponse{Message: "Shouldn't need to access service for second GetToken"}}
 	cm.SetHTTPClient(fakeAPIServer)
-	cm.SetTokenUnwrapper(&testUnwrapper{WrappedToken: badToken})
-	token, err = cm.GetToken(request)
+	readToken, err := cm.GetToken(vaultClient)
 	if err != nil {
 		t.Fatalf("An error ocurred while getting the token from file: %v", err)
 	}
 
-	if token != realToken {
-		t.Errorf("GetToken returned an incorrect token while re-reading from file: expected '%s', got '%s'", realToken, token)
+	if token != readToken {
+		t.Errorf("GetToken returned an incorrect token while re-reading from file: expected '%s', got '%s'", token, readToken)
 	}
 
 }

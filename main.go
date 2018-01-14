@@ -78,7 +78,7 @@ func main() {
 		log.Fatalf("Unable to connect to consul inventory: %v", err)
 	}
 
-	h := NewCredmanagerHandler(consulStore, consulClient, NewTokenManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient))
+	h := NewCredmanagerHandler(consulStore, NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient))
 	http.Handle("/token", h)
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

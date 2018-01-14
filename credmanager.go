@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 
-	consul "github.com/hashicorp/consul/api"
 	"github.umn.edu/pgc-devops/credmanager-api/types"
 	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
 	"github.umn.edu/pgc-devops/credmanager-api/vaultstate"
@@ -33,8 +32,8 @@ func (response *CredmanagerResponse) JSONMessage(status int, msg string) {
 }
 
 // SendToken returns a TokenResponse to the client
-func (response *CredmanagerResponse) SendToken(token string) error {
-	data, err := json.Marshal(&types.TokenResponse{Token: token})
+func (response *CredmanagerResponse) SendSecret(secret string) error {
+	data, err := json.Marshal(&types.Response{SecretID: secret})
 	if err != nil {
 		return err
 	}
@@ -47,33 +46,31 @@ func (response *CredmanagerResponse) SendToken(token string) error {
 
 // CredmanagerHandler implements http.Handler
 type CredmanagerHandler struct {
-	store        inventory.InventoryStore
-	consul       *consul.Client
-	tokenManager *TokenManager
-	nodeState    *vaultstate.VaultStateManager
+	store         inventory.InventoryStore
+	secretManager *AppRoleSecretManager
+	nodeState     *vaultstate.VaultStateManager
 }
 
 // NewCredmanagerHandler builds a new CredmanagerHandler
-func NewCredmanagerHandler(store inventory.InventoryStore, consul *consul.Client, tm *TokenManager, vaultState *vaultstate.VaultStateManager) *CredmanagerHandler {
+func NewCredmanagerHandler(store inventory.InventoryStore, sm *AppRoleSecretManager, vaultState *vaultstate.VaultStateManager) *CredmanagerHandler {
 	m := &CredmanagerHandler{}
 	m.store = store
-	m.consul = consul
-	m.tokenManager = tm
+	m.secretManager = sm
 	m.nodeState = vaultState
 	return m
 }
 
-func (m *CredmanagerHandler) getNode(tr *types.TokenRequest) (*inventorytypes.InventoryNode, error) {
+func (m *CredmanagerHandler) getNode(tr *types.Request) (*inventorytypes.InventoryNode, error) {
 	inv, err := inventory.NewInventory(m.store)
 	if err != nil {
 		log.Printf("Unable to create inventory: %v", err)
 		return nil, err
 	}
-	return inv.GetNodeByHostname(tr.Hostname)
+	return inv.GetNode(tr.ClientID)
 }
 
 // RequestFromValidNode returns true if and only if r 'from' a node in the InventoryStore
-func (m *CredmanagerHandler) requestFromValidNode(tr *types.TokenRequest, src net.IP) bool {
+func (m *CredmanagerHandler) requestFromValidNode(tr *types.Request, src net.IP) bool {
 	if tr == nil || src == nil {
 		log.Printf("Unable to verify node, missing either request or source IP")
 		return false
@@ -113,7 +110,7 @@ func (m *CredmanagerHandler) nodeEnabled(node *inventorytypes.InventoryNode) boo
 
 func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	response := &CredmanagerResponse{w}
-	request := &types.TokenRequest{}
+	request := &types.Request{}
 	if r.Method != "POST" {
 		response.JSONMessage(http.StatusMethodNotAllowed, "Method not allowed")
 		return
@@ -157,20 +154,19 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := m.tokenManager.CreateNodeToken(node, request.Policies)
-	switch err {
-	case nil:
-	case ErrPolicyMismatch:
-		log.Printf("Requested policies %s don't match those allowed for %s", request.Policies, node)
-		response.JSONMessage(http.StatusBadRequest, "Bad policy list")
-		return
-	default:
+	secret, err := m.secretManager.GetSecret(node)
+	if err != nil {
 		log.Printf("Unable to create token: %v", err)
 		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
 
-	err = response.SendToken(token)
+	err = m.nodeState.Deactivate(node.ID())
+	if err != nil {
+		log.Printf("WARNING: Unable to deactivate node %s: %v", node.ID(), err)
+	}
+
+	err = response.SendSecret(secret)
 	if err != nil {
 		log.Printf("Unable to send token response: %v", err)
 		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
