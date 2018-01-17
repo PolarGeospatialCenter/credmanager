@@ -125,3 +125,30 @@ func TestVaultStateManagerDeactivation(t *testing.T) {
 		}
 	}
 }
+
+func TestVaultStateManagerStatus(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	vaultConfig := RunVault(ctx)
+	vaultClient, err := vault.NewClient(vaultConfig)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+
+	vaultClient.SetToken(vaultTestRootToken)
+	vsm := NewVaultStateManager("nodes/bootable", vaultClient)
+	if vsm.Status("unsetkey") != "record for unsetkey not found" {
+		t.Errorf("Incorrect status returned for unset key: actual '%s', expected 'record for unsetkey not found'", vsm.Status("unsetkey"))
+	}
+
+	err = vsm.Activate("testkey", time.Second)
+	if err != nil {
+		t.Errorf("Error activating testkey: %s", err)
+	}
+	expected := "testkey: TTL 1s, Created at "
+	actual := string(vsm.Status("testkey")[:len(expected)])
+	if actual != expected {
+		t.Errorf("Incorrect status returned for test key: actually starts with '%s', expected to start with '%s'", actual, expected)
+	}
+}

@@ -149,7 +149,7 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !m.nodeEnabled(node) {
-		log.Printf("Node not marked as bootable, denying request. %v", request)
+		log.Printf("Node not marked as bootable. (%s) -- Denying request. %v", m.nodeState.Status(node.ID()), request)
 		response.JSONMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
