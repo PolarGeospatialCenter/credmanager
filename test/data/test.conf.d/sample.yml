@@ -1,0 +1,35 @@
+ssh:
+  - public_key_file: test_data/ssh_host_key_rsa.pub
+    certificate_file:
+      path: test_data/ssh_host_key_rsa.crt
+      mode: 0644
+      owner: root
+      group: root
+    backend: ssh
+    role: testrole
+    lifetime: 72h
+pki:
+  - certificate_file:
+      path: test_data/host.crt
+      mode: 0644
+      owner: root
+      group: root
+    private_key_file:
+      path: test_data/host.key
+      mode: 0600
+      owner: root
+      group: root
+    ca_cert_file:
+      path: test_data/ca.crt
+      mode: 0644
+      owner: root
+      group: root
+    backend: pki
+    role: testrole
+    lifetime: 72h
+    common_name: foo.local
+    alternative_names:
+      - bar.local
+      - baz.local
+    ip_sans:
+      - 10.0.0.1

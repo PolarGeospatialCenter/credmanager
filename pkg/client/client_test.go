@@ -13,7 +13,7 @@ import (
 
 	"github.com/azenk/vaulttest"
 	vault "github.com/hashicorp/vault/api"
-	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
+	credmanagertypes "github.com/PolarGeospatialCenter/credmanager/pkg/types"
 )
 
 func TestValidToken(t *testing.T) {
