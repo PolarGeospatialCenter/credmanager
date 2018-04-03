@@ -1,0 +1,8 @@
+---
+hostname: sample-0-0
+credmanager:
+  server_url: https://credmanager.example.tld:8234/
+  token_file: test_output/credmanager_token
+vault:
+  address: http://127.0.0.1:8200
+credential_config_dir: test_data/test.conf.d
