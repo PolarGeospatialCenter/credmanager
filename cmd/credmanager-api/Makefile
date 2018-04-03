@@ -1,4 +1,7 @@
 
+test:
+	echo "Testing credmanager-api"
+
 credmanager-api:
 	go build -o credmanager-api .
 
