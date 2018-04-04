@@ -1,4 +1,9 @@
-.PHONY: test
+.PHONY: test deps
+
+test: deps
+	$(MAKE) -C cmd/credmanager test
+	$(MAKE) -C cmd/credmanager-api test
+	go test ./pkg/...
 
 deps: vendor
 	go get github.com/hashicorp/vault/api
@@ -6,8 +11,3 @@ deps: vendor
 
 vendor: Gopkg.toml
 	dep ensure
-
-test: deps
-	$(MAKE) -C cmd/credmanager test
-	$(MAKE) -C cmd/credmanager-api test
-	go test ./pkg/...
