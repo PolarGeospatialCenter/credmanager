@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	"github.com/go-test/deep"
 	vault "github.com/hashicorp/vault/api"
 	yaml "gopkg.in/yaml.v2"
@@ -130,15 +131,19 @@ func TestPKICertManage(t *testing.T) {
 		LeaseDuration:                       1 * time.Second,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	vaultConfig := RunVault(ctx)
-	defer cancel()
-
-	vaultClient, err := vault.NewClient(vaultConfig)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
-	vaultClient.SetToken(vaultTestRootToken)
+	defer vaultInstance.Stop(ctx)
+
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+
+	vaultClient.SetToken(vaultInstance.RootToken())
 
 	err = mountPKIBackend(vaultClient, "pki")
 	if err != nil {

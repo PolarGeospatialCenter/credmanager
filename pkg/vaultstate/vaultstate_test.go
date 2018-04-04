@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	vault "github.com/hashicorp/vault/api"
 )
 
@@ -13,15 +14,19 @@ var (
 )
 
 func TestVaultStateManagerTimeout(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
 
-	vaultConfig := RunVault(ctx)
-	vaultClient, err := vault.NewClient(vaultConfig)
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
 
+	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
 
 	vaultClient.Sys().PutPolicy("testPolicy", policy)
@@ -70,15 +75,19 @@ func TestVaultStateManagerTimeout(t *testing.T) {
 }
 
 func TestVaultStateManagerDeactivation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
 
-	vaultConfig := RunVault(ctx)
-	vaultClient, err := vault.NewClient(vaultConfig)
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
 
+	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
 
 	vaultClient.Sys().PutPolicy("testPolicy", policy)
@@ -127,15 +136,19 @@ func TestVaultStateManagerDeactivation(t *testing.T) {
 }
 
 func TestVaultStateManagerStatus(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
 
-	vaultConfig := RunVault(ctx)
-	vaultClient, err := vault.NewClient(vaultConfig)
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
 
+	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
 	vsm := NewVaultStateManager("nodes/bootable", vaultClient)
 	if vsm.Status("unsetkey") != "record for unsetkey not found" {

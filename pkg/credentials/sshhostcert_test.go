@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	"github.com/go-test/deep"
 	vault "github.com/hashicorp/vault/api"
 	yaml "gopkg.in/yaml.v2"
@@ -108,14 +109,19 @@ func TestSSHCertManage(t *testing.T) {
 		ValidPrincipals:   []string{"foo.local", "bar.local"},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	vaultConfig := RunVault(ctx)
-	defer cancel()
-
-	vaultClient, err := vault.NewClient(vaultConfig)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
+	defer vaultInstance.Stop(ctx)
+
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+
+	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
 
 	time.Sleep(10 * time.Millisecond)
