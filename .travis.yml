@@ -13,5 +13,4 @@ install:
 cache:
   directories:
     - vendor
-    - $HOME/gopath/src/github.com/hashicorp/vault
-    - $HOME/gopath/src/github.com/hashicorp/consul
+    - $HOME/gopath/src/github.com/hashicorp
