@@ -1,9 +1,7 @@
 .PHONY: test deps
 
 test: deps
-	$(MAKE) -C cmd/credmanager test
-	$(MAKE) -C cmd/credmanager-api test
-	go test ./pkg/...
+	go test -cover ./{cmd,pkg}/...
 
 vendor: Gopkg.lock
 	dep ensure -vendor-only
