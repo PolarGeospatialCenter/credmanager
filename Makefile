@@ -1,7 +1,8 @@
 .PHONY: test deps
 
 test: deps
-	go test -cover ./{cmd,pkg}/...
+	go test -cover ./cmd/...
+	go test -cover ./pkg/...
 
 vendor: Gopkg.lock
 	dep ensure -vendor-only
