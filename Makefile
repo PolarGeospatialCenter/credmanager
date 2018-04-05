@@ -5,7 +5,9 @@ test: deps
 	$(MAKE) -C cmd/credmanager-api test
 	go test ./pkg/...
 
-deps:
+vendor: Gopkg.lock
 	dep ensure -vendor-only
+
+deps: vendor
 	go get github.com/hashicorp/vault/api
 	go get github.com/hashicorp/consul/api
