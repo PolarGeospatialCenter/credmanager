@@ -14,22 +14,21 @@ import (
 
 	"github.com/PolarGeospatialCenter/credmanager/pkg/types"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
+	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	"github.com/PolarGeospatialCenter/inventory/pkg/inventory"
-	"github.com/azenk/vaulttest"
 	vault "github.com/hashicorp/vault/api"
 )
 
-func getTestCredmanagerHandler(ctx context.Context) (*CredmanagerHandler, string, error) {
-	vaultConfig, rootToken := vaulttest.Run(ctx)
+func getTestCredmanagerHandler(instance *vaulttest.Instance) (*CredmanagerHandler, string, error) {
 	store, err := inventory.NewSampleInventoryStore()
 	if err != nil {
 		return nil, "", err
 	}
-	vaultClient, err := vault.NewClient(vaultConfig)
+	vaultClient, err := vault.NewClient(instance.Config())
 	if err != nil {
 		return nil, "", err
 	}
-	vaultClient.SetToken(rootToken)
+	vaultClient.SetToken(instance.RootToken())
 
 	err = loadVaultPolicyData(vaultClient)
 	if err != nil {
@@ -43,13 +42,18 @@ func getTestCredmanagerHandler(ctx context.Context) (*CredmanagerHandler, string
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	return NewCredmanagerHandler(store, NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), rootToken, nil
+	return NewCredmanagerHandler(store, NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), instance.RootToken(), nil
 }
 
 func TestValidNode(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	h, _, err := getTestCredmanagerHandler(ctx)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
+
+	h, _, err := getTestCredmanagerHandler(vaultInstance)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
@@ -70,9 +74,14 @@ func TestValidNode(t *testing.T) {
 }
 
 func TestCredmanagerNodeEnabled(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	h, vaultTestRootToken, err := getTestCredmanagerHandler(ctx)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
+
+	h, vaultTestRootToken, err := getTestCredmanagerHandler(vaultInstance)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
@@ -114,9 +123,14 @@ func TestCredmanagerNodeEnabled(t *testing.T) {
 }
 
 func TestCredmanagerHandler(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	h, vaultTestRootToken, err := getTestCredmanagerHandler(ctx)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unable to create vault client: %v", err)
+	}
+	defer vaultInstance.Stop(ctx)
+
+	h, vaultTestRootToken, err := getTestCredmanagerHandler(vaultInstance)
 	if err != nil {
 		t.Fatalf("Error creating test handler: %v", err)
 	}

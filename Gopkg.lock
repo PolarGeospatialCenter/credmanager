@@ -32,12 +32,6 @@
   revision = "a8405f62d18e52f9446ef8d9658e2e17d1eda1bf"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/azenk/vaulttest"
-  packages = ["."]
-  revision = "5b90f3f9d65ff489a1d5a73872bfa924409e7473"
-
-[[projects]]
   name = "github.com/burntsushi/toml"
   packages = ["."]
   revision = "b26d9c308763d68093482582cea63d69be07a0f0"
@@ -297,6 +291,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "11b9797ae7e95488654163c2034927af1c4d013a4aa113f5c3122cc8bd4239bb"
+  inputs-digest = "5a65ef8ed6af7dd9b133e4b2a60b5dea9bc10dcd1d912b87579e7c1e01007c7c"
   solver-name = "gps-cdcl"
   solver-version = 1
