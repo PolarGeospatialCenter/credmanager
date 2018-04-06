@@ -13,9 +13,9 @@ import (
 
 func readConfig() *viper.Viper {
 	cfg := viper.New()
-	cfg.SetConfigName("credmanager")
+	cfg.SetConfigName("config")
 	cfg.AddConfigPath(".")
-	cfg.AddConfigPath("/etc/credmanager/")
+	cfg.AddConfigPath("/etc/approle-secret-server/")
 	cfg.ReadInConfig()
 	return cfg
 }
