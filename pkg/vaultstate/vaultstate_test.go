@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	policy = `path "secret/nodes/bootable/*" { capabilities = ["read", "delete"]}`
+	policy = `path "secret/data/nodes/bootable/*" { capabilities = ["read", "delete"]}`
 )
 
 func TestVaultStateManagerTimeout(t *testing.T) {

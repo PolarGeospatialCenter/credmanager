@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 
 	"github.com/PolarGeospatialCenter/credmanager/pkg/types"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
-	"github.com/PolarGeospatialCenter/inventory/pkg/inventory"
-	inventorytypes "github.com/PolarGeospatialCenter/inventory/pkg/inventory/types"
 )
 
 // CredmanagerResponse wraps a ResponseWriter, providing useful responses
@@ -45,66 +42,20 @@ func (response *CredmanagerResponse) SendSecret(secret string) error {
 
 // CredmanagerHandler implements http.Handler
 type CredmanagerHandler struct {
-	store         inventory.InventoryStore
 	secretManager *AppRoleSecretManager
 	nodeState     *vaultstate.VaultStateManager
 }
 
 // NewCredmanagerHandler builds a new CredmanagerHandler
-func NewCredmanagerHandler(store inventory.InventoryStore, sm *AppRoleSecretManager, vaultState *vaultstate.VaultStateManager) *CredmanagerHandler {
+func NewCredmanagerHandler(sm *AppRoleSecretManager, vaultState *vaultstate.VaultStateManager) *CredmanagerHandler {
 	m := &CredmanagerHandler{}
-	m.store = store
 	m.secretManager = sm
 	m.nodeState = vaultState
 	return m
 }
 
-func (m *CredmanagerHandler) getNode(tr *types.Request) (*inventorytypes.InventoryNode, error) {
-	inv, err := inventory.NewInventory(m.store)
-	if err != nil {
-		log.Printf("Unable to create inventory: %v", err)
-		return nil, err
-	}
-	return inv.GetNode(tr.ClientID)
-}
-
-// RequestFromValidNode returns true if and only if r 'from' a node in the InventoryStore
-func (m *CredmanagerHandler) requestFromValidNode(tr *types.Request, src net.IP) bool {
-	if tr == nil || src == nil {
-		log.Printf("Unable to verify node, missing either request or source IP")
-		return false
-	}
-
-	node, err := m.getNode(tr)
-	if err != nil {
-		log.Printf("No matching node found for request: %v, error was: %v", tr, err)
-		nodes, err := m.store.Nodes()
-		if err == nil {
-			nodelist := make([]string, len(nodes))
-			i := 0
-			for _, node := range nodes {
-				nodelist[i] = node.Hostname
-				i++
-			}
-			log.Printf("Nodes found: %v", nodelist)
-		} else {
-			log.Printf("Unable to lookup any nodes: %v", err)
-		}
-		return false
-	}
-
-	for _, ip := range node.IPs() {
-		if src.String() == ip.String() {
-			return true
-		}
-	}
-	log.Printf("Unable to find %s in list of node IPs %v", src, node.IPs())
-
-	return false
-}
-
-func (m *CredmanagerHandler) nodeEnabled(node *inventorytypes.InventoryNode) bool {
-	return m.nodeState.Active(node.ID())
+func (m *CredmanagerHandler) nodeEnabled(id string) bool {
+	return m.nodeState.Active(id)
 }
 
 func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -114,13 +65,6 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		response.JSONMessage(http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		log.Printf("Unable to split request RemoteAddr address:port string : %v", err)
-		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
-		return
-	}
-	srcIP := net.ParseIP(host)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -133,36 +77,22 @@ func (m *CredmanagerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Is the request from a known host?
-	if !m.requestFromValidNode(request, srcIP) {
-		log.Printf("Request from invalid node or wrong source (%s): %v", srcIP, request)
-		response.JSONMessage(http.StatusForbidden, "Request not allowed: invalid source")
-		return
-	}
-
-	node, err := m.getNode(request)
-	if err != nil {
-		log.Printf("Unable to get node: %v", err)
-		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
-		return
-	}
-
-	if !m.nodeEnabled(node) {
-		log.Printf("Node not marked as bootable. (%s) -- Denying request. %v", m.nodeState.Status(node.ID()), request)
+	if !m.nodeEnabled(request.ClientID) {
+		log.Printf("Node not marked as bootable. (%s) -- Denying request. %v", m.nodeState.Status(request.ClientID), request)
 		response.JSONMessage(http.StatusForbidden, "Request not allowed")
 		return
 	}
 
-	secret, err := m.secretManager.GetSecret(node)
+	secret, err := m.secretManager.GetSecret(request.ClientID)
 	if err != nil {
 		log.Printf("Unable to create token: %v", err)
 		response.JSONMessage(http.StatusInternalServerError, "Request could not be handled")
 		return
 	}
 
-	err = m.nodeState.Deactivate(node.ID())
+	err = m.nodeState.Deactivate(request.ClientID)
 	if err != nil {
-		log.Printf("WARNING: Unable to deactivate node %s: %v", node.ID(), err)
+		log.Printf("WARNING: Unable to deactivate node %s: %v", request.ClientID, err)
 	}
 
 	err = response.SendSecret(secret)

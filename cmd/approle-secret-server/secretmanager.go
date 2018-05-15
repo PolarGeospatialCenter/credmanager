@@ -18,12 +18,12 @@ func NewAppRoleSecretManager(c *vault.Client) *AppRoleSecretManager {
 	return &AppRoleSecretManager{vaultClient: c}
 }
 
-func (m *AppRoleSecretManager) getRoleName(obj IDable) string {
-	return fmt.Sprintf("credmanager-%s", obj.ID())
+func (m *AppRoleSecretManager) getRoleName(id string) string {
+	return fmt.Sprintf("credmanager-%s", id)
 }
 
-func (m *AppRoleSecretManager) GetSecret(obj IDable) (string, error) {
-	roleName := m.getRoleName(obj)
+func (m *AppRoleSecretManager) GetSecret(id string) (string, error) {
+	roleName := m.getRoleName(id)
 	secret, err := m.vaultClient.Logical().Write(fmt.Sprintf("auth/approle/role/%s/secret-id", roleName), nil)
 	if err != nil {
 		return "", err

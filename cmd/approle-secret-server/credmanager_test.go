@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,15 +14,10 @@ import (
 	"github.com/PolarGeospatialCenter/credmanager/pkg/types"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
 	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
-	"github.com/PolarGeospatialCenter/inventory/pkg/inventory"
 	vault "github.com/hashicorp/vault/api"
 )
 
 func getTestCredmanagerHandler(instance *vaulttest.Instance) (*CredmanagerHandler, string, error) {
-	store, err := inventory.NewSampleInventoryStore()
-	if err != nil {
-		return nil, "", err
-	}
 	vaultClient, err := vault.NewClient(instance.Config())
 	if err != nil {
 		return nil, "", err
@@ -42,35 +36,7 @@ func getTestCredmanagerHandler(instance *vaulttest.Instance) (*CredmanagerHandle
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	return NewCredmanagerHandler(store, NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), instance.RootToken(), nil
-}
-
-func TestValidNode(t *testing.T) {
-	ctx := context.Background()
-	vaultInstance, err := vaulttest.Run(ctx)
-	if err != nil {
-		t.Fatalf("Unable to create vault client: %v", err)
-	}
-	defer vaultInstance.Stop(ctx)
-
-	h, _, err := getTestCredmanagerHandler(vaultInstance)
-	if err != nil {
-		t.Fatalf("Error creating test handler: %v", err)
-	}
-
-	// This node doesn't exist, so should fail.
-	if h.requestFromValidNode(&types.Request{ClientID: "bad-node"}, net.ParseIP("127.0.0.1")) {
-		t.Fatalf("Request from invalid node accepted.")
-	}
-
-	// The IP address of the node in the sample inventory is not 127.0.0.1, so this should fail
-	if h.requestFromValidNode(&types.Request{ClientID: "sample0001"}, net.ParseIP("127.0.0.1")) {
-		t.Fatalf("Request from invalid node accepted.")
-	}
-
-	if !h.requestFromValidNode(&types.Request{ClientID: "sample0000"}, net.ParseIP("127.0.0.1")) {
-		t.Fatalf("Request from valid node rejected.")
-	}
+	return NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), instance.RootToken(), nil
 }
 
 func TestCredmanagerNodeEnabled(t *testing.T) {
@@ -87,18 +53,17 @@ func TestCredmanagerNodeEnabled(t *testing.T) {
 	}
 
 	vaultClient := h.secretManager.vaultClient
-	_ = vaultClient
-	nodes, _ := h.store.Nodes()
+	nodes := []string{"good-node-1"}
 
 	//both sample nodes should fail at first
 	for _, node := range nodes {
 		if h.nodeEnabled(node) {
-			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node.ID())
+			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node)
 		}
 		// Activate node
 		myToken := vaultClient.Token()
 		vaultClient.SetToken(vaultTestRootToken)
-		err := h.nodeState.Activate(node.ID(), time.Second)
+		err := h.nodeState.Activate(node, time.Second)
 		if err != nil {
 			t.Errorf("Unable to activate node: %v", err)
 		}
@@ -108,7 +73,7 @@ func TestCredmanagerNodeEnabled(t *testing.T) {
 	time.Sleep(5 * time.Millisecond)
 	for _, node := range nodes {
 		if !h.nodeEnabled(node) {
-			t.Errorf("Check for whether node is enabled returned false instead of true: %s", node.ID())
+			t.Errorf("Check for whether node is enabled returned false instead of true: %s", node)
 		}
 	}
 
@@ -116,7 +81,7 @@ func TestCredmanagerNodeEnabled(t *testing.T) {
 
 	for _, node := range nodes {
 		if h.nodeEnabled(node) {
-			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node.ID())
+			t.Errorf("Check for whether node is enabled returned true instead of false: %s", node)
 		}
 	}
 
@@ -135,16 +100,13 @@ func TestCredmanagerHandler(t *testing.T) {
 		t.Fatalf("Error creating test handler: %v", err)
 	}
 
-	nodes, err := h.store.Nodes()
-	if err != nil {
-		t.Fatalf("Unable to get nodes from sample inventory: %v", err)
-	}
+	nodes := []string{"sample0001"}
 
 	vaultClient := h.secretManager.vaultClient
 	for _, node := range nodes {
 		myToken := vaultClient.Token()
 		vaultClient.SetToken(vaultTestRootToken)
-		err := h.nodeState.Activate(node.ID(), time.Second)
+		err := h.nodeState.Activate(node, time.Second)
 		if err != nil {
 			t.Errorf("Unable to activate node: %v", err)
 		}

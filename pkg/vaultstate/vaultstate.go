@@ -2,6 +2,7 @@ package vaultstate
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	vault "github.com/hashicorp/vault/api"
@@ -21,15 +22,15 @@ type VaultStateManager struct {
 }
 
 // NewVaultStateManager creates a VaultStateManager
-func NewVaultStateManager(path string, client *vault.Client) *VaultStateManager {
+func NewVaultStateManager(basePath string, client *vault.Client) *VaultStateManager {
 	vsm := &VaultStateManager{}
-	vsm.BasePath = path
+	vsm.BasePath = basePath
 	vsm.vaultClient = client
 	return vsm
 }
 
 func (vsm *VaultStateManager) keyPath(key string) string {
-	return fmt.Sprintf("secret/%s/%s", vsm.BasePath, key)
+	return fmt.Sprintf("secret/data/%s/%s", vsm.BasePath, key)
 }
 
 // Activate the key for ttl duration
@@ -38,7 +39,8 @@ func (vsm *VaultStateManager) Activate(key string, ttl time.Duration) error {
 	data["ttl"] = ttl.String()
 	created, _ := time.Now().MarshalText()
 	data["created"] = string(created)
-	_, err := vsm.vaultClient.Logical().Write(vsm.keyPath(key), data)
+	wrapper := map[string]interface{}{"data": data}
+	_, err := vsm.vaultClient.Logical().Write(vsm.keyPath(key), wrapper)
 	return err
 }
 
@@ -54,11 +56,24 @@ func (vsm *VaultStateManager) getRecord(key string) *stateRecord {
 		return nil
 	}
 	createdTime := time.Time{}
-	err = createdTime.UnmarshalText([]byte(secret.Data["created"].(string)))
+	record, ok := secret.Data["data"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	recordCreated, ok := record["created"].(string)
+	if !ok {
+		return nil
+	}
+
+	err = createdTime.UnmarshalText([]byte(recordCreated))
 	if err != nil {
 		return nil
 	}
-	ttl := time.Duration(secret.LeaseDuration) * time.Second
+	ttl, err := time.ParseDuration(record["ttl"].(string))
+	if err != nil {
+		log.Printf("Unable to parse duration: %v", err)
+		return nil
+	}
 	expiration := createdTime.Add(ttl)
 	return &stateRecord{CreatedTime: createdTime, ExpirationTime: expiration, TTL: ttl}
 }

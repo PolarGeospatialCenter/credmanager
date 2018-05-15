@@ -23,14 +23,6 @@
 ignored = ["github.com/hashicorp/vault/api", "github.com/hashicorp/consul/api"]
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/PolarGeospatialCenter/inventory"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/azenk/vaulttest"
-
-[[constraint]]
   name = "github.com/coreos/go-systemd"
   version = "16.0.0"
 

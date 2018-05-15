@@ -11,7 +11,7 @@ var (
   capabilities = ["update"]
 }
 
-path "secret/nodes/bootable/*" {
+path "secret/data/nodes/bootable/*" {
 	capabilities = ["read", "delete"]
 }
 `
