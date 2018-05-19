@@ -8,11 +8,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	"github.com/go-test/deep"
 	vault "github.com/hashicorp/vault/api"
 	yaml "gopkg.in/yaml.v1"
 )
+
+func mountV1KVBackend(vaultClient *vault.Client, mountPath string) error {
+	mount := &vault.MountInput{
+		Type:        "kv",
+		Description: "Version 1 KV Store",
+		Config: vault.MountConfigInput{
+			DefaultLeaseTTL: "86400",
+			MaxLeaseTTL:     "86400",
+			ForceNoCache:    true,
+			PluginName:      "kv",
+		},
+		Local:      true,
+		PluginName: "ssh",
+		Options:    map[string]string{"version": "1"},
+	}
+	err := vaultClient.Sys().Mount(mountPath, mount)
+	return err
+}
 
 func TestCredentialTemplate(t *testing.T) {
 	// get tempDir
@@ -24,7 +43,7 @@ func TestCredentialTemplate(t *testing.T) {
 
 	// Write test template
 	templateFile := filepath.Join(tempDir, "foo.tmpl.yml")
-	templateString := `{{ with secret "secret/client-data/bar" }}{{ .Data.value }}{{ end }}`
+	templateString := `{{ with secret "kv1/client-data/bar" }}{{ .Data.value }}{{ end }}`
 	err = ioutil.WriteFile(templateFile, []byte(templateString), 0644)
 
 	outFile, err := NewCredentialFile(filepath.Join(tempDir, "foo.yml"), 0600, "", "")
@@ -52,7 +71,14 @@ func TestCredentialTemplate(t *testing.T) {
 	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
 
-	err = vaultClient.Sys().PutPolicy("test-client-secrets", `path "secret/client-data/*" { capabilities = ["read"] }`)
+	v1mountPath := "kv1"
+
+	err = mountV1KVBackend(vaultClient, v1mountPath)
+	if err != nil {
+		t.Fatalf("Unable to mount v1 of kv backend: %v", err)
+	}
+
+	err = vaultClient.Sys().PutPolicy("test-client-secrets", `path "kv1/client-data/*" { capabilities = ["read"] }`)
 	if err != nil {
 		t.Fatalf("Unable to create policy allowing access to secrets: %v", err)
 	}
@@ -70,16 +96,17 @@ func TestCredentialTemplate(t *testing.T) {
 	// verify template output matches expected
 
 	cases := []string{"Hello Vault!", "updated!", "updated again!", "updated yet again!"}
-	interval, _ := time.ParseDuration("2s")
-	tmr := time.NewTimer(interval)
+	interval, _ := time.ParseDuration("1s")
+	tmr := time.NewTimer(2 * interval)
 	for _, expectedOutput := range cases {
 		// change secrets in vault
 		vaultClient.SetToken(vaultTestRootToken)
-		_, err = vaultClient.Logical().Write("secret/client-data/bar", map[string]interface{}{"value": expectedOutput, "ttl": interval.String()})
+		k := vaulthelper.NewKV(vaultClient, v1mountPath, 1)
+		err = k.Write("client-data/bar", map[string]interface{}{"value": expectedOutput, "ttl": interval.String()}, nil)
 		if err != nil {
 			t.Fatalf("Unable to write test secret data: %v", err)
 		}
-		tmr.Reset(interval)
+		tmr.Reset(2 * interval)
 		t.Logf("Value set at: %s", time.Now())
 
 		vaultClient.SetToken(secret.Auth.ClientToken)
