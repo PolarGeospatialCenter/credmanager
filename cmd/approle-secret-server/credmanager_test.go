@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/PolarGeospatialCenter/credmanager/pkg/types"
+	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
 	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	vault "github.com/hashicorp/vault/api"
@@ -36,7 +37,7 @@ func getTestCredmanagerHandler(instance *vaulttest.Instance) (*CredmanagerHandle
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	return NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient)), instance.RootToken(), nil
+	return NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 2))), instance.RootToken(), nil
 }
 
 func TestCredmanagerNodeEnabled(t *testing.T) {

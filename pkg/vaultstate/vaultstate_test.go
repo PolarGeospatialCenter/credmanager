@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	vault "github.com/hashicorp/vault/api"
 )
@@ -39,7 +40,8 @@ func TestVaultStateManagerTimeout(t *testing.T) {
 
 	vaultClient.SetToken(myToken)
 
-	vsm := NewVaultStateManager("nodes/bootable", vaultClient)
+	kvClient := vaulthelper.NewKV(vaultClient, "secret", 2)
+	vsm := NewVaultStateManager("nodes/bootable", kvClient)
 
 	testKeys := []string{"foo", "bar", "baz"}
 	for _, key := range testKeys {
@@ -100,7 +102,8 @@ func TestVaultStateManagerDeactivation(t *testing.T) {
 
 	vaultClient.SetToken(myToken)
 
-	vsm := NewVaultStateManager("nodes/bootable", vaultClient)
+	kvClient := vaulthelper.NewKV(vaultClient, "secret", 2)
+	vsm := NewVaultStateManager("nodes/bootable", kvClient)
 
 	testKeys := []string{"foo", "bar", "baz"}
 	for _, key := range testKeys {
@@ -150,7 +153,8 @@ func TestVaultStateManagerStatus(t *testing.T) {
 
 	vaultTestRootToken := vaultInstance.RootToken()
 	vaultClient.SetToken(vaultTestRootToken)
-	vsm := NewVaultStateManager("nodes/bootable", vaultClient)
+	kvClient := vaulthelper.NewKV(vaultClient, "secret", 2)
+	vsm := NewVaultStateManager("nodes/bootable", kvClient)
 	if vsm.Status("unsetkey") != "record for unsetkey not found" {
 		t.Errorf("Incorrect status returned for unset key: actual '%s', expected 'record for unsetkey not found'", vsm.Status("unsetkey"))
 	}

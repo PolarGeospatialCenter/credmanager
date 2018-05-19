@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/viper"
@@ -48,7 +49,7 @@ func main() {
 		log.Fatalf("Unable to connect to vault: %v", err)
 	}
 
-	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaultClient))
+	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 2)))
 	http.Handle("/secret", h)
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
