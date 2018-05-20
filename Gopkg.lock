@@ -9,9 +9,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/PolarGeospatialCenter/awstools"
+  packages = ["pkg/config"]
+  revision = "dbe1840ac783ee739440edfd2e2dae41fbfc69f6"
+
+[[projects]]
+  branch = "master"
   name = "github.com/PolarGeospatialCenter/dockertest"
   packages = ["pkg/docker","pkg/vault"]
   revision = "398dfb5b2194221bfe47349ec296e78abda13b3e"
+
+[[projects]]
+  name = "github.com/aws/aws-sdk-go"
+  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/sdkio","internal/sdkrand","internal/shareddefaults","private/protocol","private/protocol/json/jsonutil","private/protocol/jsonrpc","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/ssm","service/sts"]
+  revision = "5f796043d63bfddca929cfbcffce01e5a894aad5"
+  version = "v1.13.52"
 
 [[projects]]
   name = "github.com/burntsushi/toml"
@@ -56,6 +68,12 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/go-ini/ini"
+  packages = ["."]
+  revision = "6529cf7c58879c08d927016dde4477f18a0634cb"
+  version = "v1.36.0"
+
+[[projects]]
   name = "github.com/go-test/deep"
   packages = ["."]
   revision = "6592d9cc0a499ad2d5f574fde80a2b5c5cc3b4f5"
@@ -96,6 +114,11 @@
   name = "github.com/hashicorp/hcl"
   packages = [".","hcl/ast","hcl/parser","hcl/printer","hcl/scanner","hcl/strconv","hcl/token","json/parser","json/scanner","json/token"]
   revision = "061bf373e402ebb186988085a71ac748949594a9"
+
+[[projects]]
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  revision = "0b12d6b5"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -196,6 +219,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "095b76049ccc8279b65421becc33e0634ea9d99ab0448c81aa7f0ce206f63896"
+  inputs-digest = "fe4d665e63a339188eb56f5b39d95bd27568100d58e5c11ee5a4a075380dbc67"
   solver-name = "gps-cdcl"
   solver-version = 1

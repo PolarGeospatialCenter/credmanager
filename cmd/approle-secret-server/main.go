@@ -4,14 +4,19 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/PolarGeospatialCenter/awstools/pkg/config"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaultstate"
 	vault "github.com/hashicorp/vault/api"
-	"github.com/spf13/viper"
 )
 
-func readConfig() *viper.Viper {
-	cfg := viper.New()
+// ConfigurationStore interface
+type ConfigurationStore interface {
+	GetString(string) string
+}
+
+func readConfig() ConfigurationStore {
+	cfg := config.NewParameterViper()
 	cfg.SetConfigName("config")
 	cfg.AddConfigPath(".")
 	cfg.AddConfigPath("/etc/approle-secret-server/")
@@ -19,24 +24,20 @@ func readConfig() *viper.Viper {
 	return cfg
 }
 
-func getVaultClient(cfg *viper.Viper) (*vault.Client, error) {
-	if cfg.InConfig("vault") {
-		cfg = cfg.Sub("vault")
-	} else {
-		cfg = viper.New()
-	}
-
+func getVaultClient(cfg ConfigurationStore) (*vault.Client, error) {
 	config := vault.DefaultConfig()
-	if cfg.InConfig("address") {
-		config.Address = cfg.GetString("address")
+	configuredVaultAddress := cfg.GetString("vault.address")
+	if configuredVaultAddress != "" {
+		config.Address = configuredVaultAddress
 	}
 
 	vaultClient, err := vault.NewClient(config)
 	if err != nil {
 		return nil, err
 	}
-	if cfg.InConfig("token") {
-		vaultClient.SetToken(cfg.GetString("token"))
+	configuredVaultToken := cfg.GetString("vault.token")
+	if configuredVaultToken != "" {
+		vaultClient.SetToken(configuredVaultToken)
 	}
 	return vaultClient, nil
 }
