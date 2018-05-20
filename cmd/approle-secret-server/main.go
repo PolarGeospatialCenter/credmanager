@@ -39,7 +39,7 @@ func getVaultClient(cfg ConfigurationStore) (*vault.Client, error) {
 	configuredVaultToken := cfg.GetString("vault.token")
 	if configuredVaultToken != "" {
 		vaultClient.SetToken(configuredVaultToken)
-	} else {
+	} else if vaultClient.Token() == "" {
 		secret, err := vaulthelper.LoginWithEC2InstanceProfile(vaultClient, cfg.GetString("vault.role"), "")
 		if err != nil {
 			return nil, fmt.Errorf("unable to authenticate using instance profile: %v", err)
