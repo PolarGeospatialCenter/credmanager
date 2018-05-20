@@ -30,6 +30,15 @@ func LoginWithEC2InstanceProfile(client *vault.Client, role string, nonce string
 		"role":  role,
 		"nonce": nonce,
 	}
+	request := client.NewRequest("POST", "/auth/aws/login")
+	err = request.SetJSONBody(authData)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.RawRequest(request)
+	if err != nil {
+		return nil, err
+	}
 
-	return client.Logical().Write("/auth/aws/login", authData)
+	return vault.ParseSecret(response.Body)
 }
