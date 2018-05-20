@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -38,6 +39,23 @@ func getVaultClient(cfg ConfigurationStore) (*vault.Client, error) {
 	configuredVaultToken := cfg.GetString("vault.token")
 	if configuredVaultToken != "" {
 		vaultClient.SetToken(configuredVaultToken)
+	} else {
+		secret, err := vaulthelper.LoginWithEC2InstanceProfile(vaultClient, cfg.GetString("vault.role"), "")
+		if err != nil {
+			return nil, fmt.Errorf("unable to authenticate using instance profile: %v", err)
+		}
+		vaultClient.SetToken(secret.Auth.ClientToken)
+		renewable, err := secret.TokenIsRenewable()
+		if err == nil && renewable {
+			renewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret})
+			if err != nil {
+				return nil, fmt.Errorf("token is renewable, but setting up a renewer failed: %v", err)
+			}
+			go renewer.Renew()
+			defer renewer.Stop()
+		} else if err != nil {
+			return nil, fmt.Errorf("unable to determine renability of token: %v", err)
+		}
 	}
 	return vaultClient, nil
 }
