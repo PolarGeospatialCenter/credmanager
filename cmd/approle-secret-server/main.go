@@ -28,6 +28,7 @@ func readConfig() ConfigurationStore {
 func getVaultClient(cfg ConfigurationStore) (*vault.Client, error) {
 	config := vault.DefaultConfig()
 	configuredVaultAddress := cfg.GetString("vault.address")
+	log.Printf("Loaded vault address from configuration: %s", configuredVaultAddress)
 	if configuredVaultAddress != "" {
 		config.Address = configuredVaultAddress
 	}
@@ -38,8 +39,10 @@ func getVaultClient(cfg ConfigurationStore) (*vault.Client, error) {
 	}
 	configuredVaultToken := cfg.GetString("vault.token")
 	if configuredVaultToken != "" {
+		log.Printf("Found vault token in configuration file or parameter store, using")
 		vaultClient.SetToken(configuredVaultToken)
 	} else if vaultClient.Token() == "" {
+		log.Printf("No token configuration found.  Falling back to using ec2 instance profile.")
 		secret, err := vaulthelper.LoginWithEC2InstanceProfile(vaultClient, cfg.GetString("vault.role"), "")
 		if err != nil {
 			return nil, fmt.Errorf("unable to authenticate using instance profile: %v", err)
