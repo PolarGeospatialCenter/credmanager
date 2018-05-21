@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	vault "github.com/hashicorp/vault/api"
 )
@@ -26,7 +27,7 @@ func LoginWithEC2InstanceProfile(client *vault.Client, role string, nonce string
 		return nil, fmt.Errorf("unable to get pkcs7 identity signature: %v", err)
 	}
 	authData := map[string]interface{}{
-		"pkcs7": pkcs7,
+		"pkcs7": strings.Replace(pkcs7, "\n", "", -1),
 		"role":  role,
 		"nonce": nonce,
 	}
