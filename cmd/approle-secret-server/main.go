@@ -60,7 +60,7 @@ func main() {
 		log.Fatalf("Unable to connect to vault: %v", err)
 	}
 
-	secret, err := vaultClient.Auth().Token().Lookup(vaultClient.Token())
+	secret, err := vaultClient.Auth().Token().LookupSelf()
 	if err != nil {
 		log.Fatalf("unable to lookup our own token for renewal setup: %v", err)
 	}
