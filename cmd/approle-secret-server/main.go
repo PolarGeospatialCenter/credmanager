@@ -77,7 +77,7 @@ func main() {
 		log.Printf("unable to determine renability of token: %v", err)
 	}
 
-	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 2)))
+	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 1)))
 	http.Handle("/secret", h)
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
