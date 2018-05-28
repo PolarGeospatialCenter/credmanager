@@ -79,6 +79,14 @@ func main() {
 
 	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 1)))
 	http.Handle("/secret", h)
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		status := "healthy"
+		if _, err := vaultClient.Auth().Token().LookupSelf(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			status = "expired or bad token"
+		}
+		w.Write([]byte(fmt.Sprintf("{\"status\": \"%s\"}", status)))
+	})
 	log.Printf("Starting webserver on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
