@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/PolarGeospatialCenter/awstools/pkg/config"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
@@ -19,6 +20,8 @@ type ConfigurationStore interface {
 func readConfig() ConfigurationStore {
 	cfg := config.NewParameterViper()
 	cfg.SetConfigName("config")
+	cfg.SetDefault("vault.kv_prefix", "secret")
+	cfg.SetDefault("vault.kv_version", "1")
 	cfg.AddConfigPath(".")
 	cfg.AddConfigPath("/etc/approle-secret-server/")
 	cfg.ReadInConfig()
@@ -77,7 +80,15 @@ func main() {
 		log.Printf("unable to determine renability of token: %v", err)
 	}
 
-	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient), vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, "secret", 1)))
+	kvPrefix := cfg.GetString("vault.kv_prefix")
+
+	kvVersion, err := strconv.Atoi(cfg.GetString("vault.kv_version"))
+	if err != nil {
+		log.Fatalf("unable to parse vault.kv_version %s", cfg.GetString("vault.kv_version"))
+	}
+
+	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient),
+		vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, kvPrefix, kvVersion)))
 	http.Handle("/secret", h)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := "healthy"
