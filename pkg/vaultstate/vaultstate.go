@@ -9,8 +9,9 @@ import (
 )
 
 type stateRecord struct {
-	TTL         time.Duration
-	CreatedTime time.Time
+	TTL              time.Duration
+	SkipDeactivation bool
+	CreatedTime      time.Time
 }
 
 func newRecord(ttl time.Duration) *stateRecord {
@@ -30,6 +31,7 @@ func (r *stateRecord) Map() map[string]interface{} {
 	data["ttl"] = r.TTL.String()
 	created, _ := r.CreatedTime.MarshalText()
 	data["created"] = string(created)
+	data["skip_deactivation"] = r.SkipDeactivation
 	return data
 }
 
@@ -68,6 +70,10 @@ func (vsm *VaultStateManager) Activate(key string, ttl time.Duration) error {
 
 // Deactivate removes a key from the vault tree, thus deactivating it
 func (vsm *VaultStateManager) Deactivate(key string) error {
+	if vsm.getRecord(key).SkipDeactivation {
+		return nil
+	}
+
 	err := vsm.vaultClient.DeleteLatest(vsm.keyPath(key))
 	return err
 }
@@ -96,7 +102,12 @@ func (vsm *VaultStateManager) getRecord(key string) *stateRecord {
 		log.Printf("Unable to parse duration: %v", err)
 		return nil
 	}
-	return &stateRecord{CreatedTime: createdTime, TTL: ttl}
+
+	skipDeactivation, ok := record["skip_deactivation"].(bool)
+	if !ok {
+		skipDeactivation = false
+	}
+	return &stateRecord{CreatedTime: createdTime, SkipDeactivation: skipDeactivation, TTL: ttl}
 }
 
 // Active returns true if the key exists and the ttl has not expired, false otherwise
