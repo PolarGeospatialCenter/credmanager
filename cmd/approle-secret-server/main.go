@@ -68,27 +68,19 @@ func main() {
 		log.Fatalf("Unable to connect to vault: %v", err)
 	}
 
-	secret, err := vaultClient.Auth().Token().LookupSelf()
+	// Renew so that we have a populated Auth struct in the secret.
+	secret, err := vaultClient.Auth().Token().RenewSelf(0)
 	if err != nil {
-		log.Fatalf("unable to lookup our own token for renewal setup: %v", err)
+		log.Fatalf("Error renewing our own token: %v", err)
 	}
 
-	log.Printf("Got secret: %v, renewable: %v, token: %s", secret.Data, secret.Auth.Renewable, secret.Auth.ClientToken)
-
-	renewable, err := secret.TokenIsRenewable()
-	var renewer *vault.Renewer
-	if err == nil && renewable {
-		var err error
-		renewer, err = vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret})
-		if err != nil {
-			log.Fatalf("token is renewable, but setting up a renewer failed: %v", err)
-		}
-		go renewer.Renew()
-		log.Printf("Token renewer started")
-		defer renewer.Stop()
-	} else {
-		log.Fatalf("Token is not renewable or error setting up renewer: %v", err)
+	renewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret})
+	if err != nil {
+		log.Fatalf("token is renewable, but setting up a renewer failed: %v", err)
 	}
+	go renewer.Renew()
+	log.Printf("Token renewer started")
+	defer renewer.Stop()
 
 	kvPrefix := cfg.GetString("vault.kv_prefix")
 
