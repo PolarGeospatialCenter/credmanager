@@ -108,6 +108,14 @@ func main() {
 		Handler: server,
 	}
 
+	go func() {
+		var err error
+		err = httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Printf("Unable to serve: %s", err)
+		}
+	}()
+
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGTERM)
 
