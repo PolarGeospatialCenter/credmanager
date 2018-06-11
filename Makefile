@@ -1,10 +1,18 @@
+.PHONY: test deps all
 
-credmanager-api:
-	go build -o credmanager-api .
+all: test docker
+
+test: deps
+	go test -cover ./cmd/...
+	go test -cover ./pkg/...
+
+vendor: Gopkg.lock
+	dep ensure -vendor-only
+
+deps: vendor
+	go get -u github.com/hashicorp/vault/api
+	go get -u github.com/hashicorp/consul/api
 
 docker:
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o credmanager-api.linux .
-	docker build . -t pgc-docker.artifactory.umn.edu/credmanager-api:latest
-
-docker-push: docker
-	docker push pgc-docker.artifactory.umn.edu/credmanager-api:latest
+	docker build -t polargeospatialcenter/approle-secret-server -f Dockerfile.approle-secret-server .
+	docker build -t polargeospatialcenter/credmanager -f Dockerfile.credmanager .

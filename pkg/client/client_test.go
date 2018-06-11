@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/azenk/vaulttest"
+	credmanagertypes "github.com/PolarGeospatialCenter/credmanager/pkg/types"
+	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
 	vault "github.com/hashicorp/vault/api"
-	credmanagertypes "github.umn.edu/pgc-devops/credmanager-api/types"
 )
 
 func TestValidToken(t *testing.T) {
@@ -139,13 +139,13 @@ func TestSaveAndLoadToken(t *testing.T) {
 
 func TestGetToken(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	vaultConfig, rootToken := vaulttest.Run(ctx)
-	vaultClient, err := vault.NewClient(vaultConfig)
+	ctx := context.Background()
+	vaultInstance, err := vaulttest.Run(ctx)
 	if err != nil {
 		t.Fatalf("Unable to create vault client: %v", err)
 	}
+	rootToken := vaultInstance.RootToken()
+	vaultClient, err := vault.NewClient(vaultInstance.Config())
 
 	vaultClient.SetToken(rootToken)
 

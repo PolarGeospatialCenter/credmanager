@@ -1,0 +1,19 @@
+sudo: required
+
+services:
+  - docker
+
+language: go
+before_install:
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+install:
+  - make deps
+
+script:
+  - make test
+
+cache:
+  directories:
+    - vendor
+    - $HOME/gopath/src/github.com/hashicorp
