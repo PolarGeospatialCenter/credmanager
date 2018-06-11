@@ -73,6 +73,8 @@ func main() {
 		log.Fatalf("unable to lookup our own token for renewal setup: %v", err)
 	}
 
+	log.Printf("Got secret: %v, renewable: %v, token: %s", secret.Data, secret.Auth.Renewable, secret.Auth.ClientToken)
+
 	renewable, err := secret.TokenIsRenewable()
 	var renewer *vault.Renewer
 	if err == nil && renewable {
