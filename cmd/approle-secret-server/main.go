@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/PolarGeospatialCenter/awstools/pkg/config"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
@@ -69,15 +74,18 @@ func main() {
 	}
 
 	renewable, err := secret.TokenIsRenewable()
+	var renewer *vault.Renewer
 	if err == nil && renewable {
-		renewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret})
+		var err error
+		renewer, err = vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret})
 		if err != nil {
 			log.Fatalf("token is renewable, but setting up a renewer failed: %v", err)
 		}
 		go renewer.Renew()
+		log.Printf("Token renewer started")
 		defer renewer.Stop()
-	} else if err != nil {
-		log.Printf("unable to determine renability of token: %v", err)
+	} else {
+		log.Fatalf("Token is not renewable or error setting up renewer: %v", err)
 	}
 
 	kvPrefix := cfg.GetString("vault.kv_prefix")
@@ -89,8 +97,9 @@ func main() {
 
 	h := NewCredmanagerHandler(NewAppRoleSecretManager(vaultClient),
 		vaultstate.NewVaultStateManager("nodes/bootable", vaulthelper.NewKV(vaultClient, kvPrefix, kvVersion)))
-	http.Handle("/secret", h)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	server := http.NewServeMux()
+	server.Handle("/secret", h)
+	server.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := "healthy"
 		if _, err := vaultClient.Auth().Token().LookupSelf(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -99,5 +108,36 @@ func main() {
 		w.Write([]byte(fmt.Sprintf("{\"status\": \"%s\"}", status)))
 	})
 	log.Printf("Starting webserver on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	httpServer := &http.Server{
+		Addr:    ":8080",
+		Handler: server,
+	}
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGTERM)
+
+	var exit bool
+	for exit == false {
+		select {
+		case signal := <-signalChan:
+			log.Printf("Got signal: %v", signal)
+			log.Printf("Shutting down http server ...")
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err := httpServer.Shutdown(ctx)
+			if err != nil {
+				log.Fatalf("Error while shutting down http server: %v", err)
+			}
+			log.Printf("Shutdown Complete")
+			exit = true
+		case err := <-renewer.DoneCh():
+			log.Printf("Error renewing token: %v", err)
+			exit = true
+		case <-renewer.RenewCh():
+			log.Printf("Renewed token")
+		}
+	}
+	log.Printf("Exiting")
+
 }
