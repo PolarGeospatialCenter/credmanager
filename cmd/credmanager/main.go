@@ -101,7 +101,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to load credential configurations: %v", err)
 	}
-	fmt.Println(credList)
+	log.Printf("Loaded credential configurations: %v", credList)
 
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Address = viper.GetString("vault.address")
@@ -127,6 +127,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error renewing our own token: %v", err)
 	}
+	log.Printf("Renewed our vault token.")
 
 	gracePeriod := 24 * time.Hour
 	tokenRenewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret, Grace: gracePeriod})
@@ -136,6 +137,7 @@ func main() {
 
 	tokenRenewer.Renew()
 	defer tokenRenewer.Stop()
+	log.Printf("Started token renewer.")
 
 	renewers := &credentials.RenewerMerger{}
 
@@ -146,6 +148,7 @@ func main() {
 		}
 		renewers.AddRenewer(credential.Renewer())
 		defer credential.Stop()
+		log.Printf("Issued credential and started renewer: %v", credential)
 	}
 
 	signalChan := make(chan os.Signal, 1)
