@@ -122,18 +122,20 @@ func main() {
 
 	vaultClient.SetToken(token)
 
-	secret, err := vaultClient.Auth().Token().LookupSelf()
+	// Renew so that we have a populated Auth struct in the secret.
+	secret, err := vaultClient.Auth().Token().RenewSelf(0)
 	if err != nil {
-		log.Fatalf("Error looking up our own token: %v", err)
+		log.Fatalf("Error renewing our own token: %v", err)
 	}
 
 	gracePeriod := 24 * time.Hour
-	renewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret, Grace: gracePeriod})
+	tokenRenewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret, Grace: gracePeriod})
 	if err != nil {
 		log.Fatalf("Error creating token renewer: %v", err)
 	}
 
-	renewer.Renew()
+	tokenRenewer.Renew()
+	defer tokenRenewer.Stop()
 
 	renewers := &credentials.RenewerMerger{}
 
@@ -154,14 +156,20 @@ func main() {
 		case signal := <-signalChan:
 			switch signal {
 			case syscall.SIGTERM:
+				log.Printf("Got SIGTERM, exiting.")
 				return
 			case syscall.SIGINT:
+				log.Printf("Got SIGINT, exiting.")
 				return
 			}
 		case renewal := <-renewers.RenewCh():
 			log.Printf("Renewal: %s", renewal)
 		case err := <-renewers.DoneCh():
 			log.Printf("Got error: %v", err)
+		case renewal := <-tokenRenewer.RenewCh():
+			log.Printf("Renewed credmanager vault token: %v", renewal)
+		case err := <-tokenRenewer.DoneCh():
+			log.Printf("Error renewing credmanager vault token: %v", err)
 		}
 	}
 }
