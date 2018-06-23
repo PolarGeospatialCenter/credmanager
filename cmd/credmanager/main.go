@@ -135,7 +135,7 @@ func main() {
 		log.Fatalf("Error creating token renewer: %v", err)
 	}
 
-	tokenRenewer.Renew()
+	go tokenRenewer.Renew()
 	defer tokenRenewer.Stop()
 	log.Printf("Started token renewer.")
 
