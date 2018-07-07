@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	credmanager "github.com/PolarGeospatialCenter/credmanager/pkg/client"
 	"github.com/PolarGeospatialCenter/credmanager/pkg/credentials"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/viper"
@@ -91,12 +90,6 @@ func main() {
 		log.Fatalf("Unable to read config file: %v", err)
 	}
 
-	credManager := &credmanager.CredManagerClient{}
-	err = viper.UnmarshalKey("credmanager", credManager)
-	if err != nil {
-		log.Fatalf("Unable to read credmanager section of config file: %v", err)
-	}
-
 	credList, err := loadCredentialConfigs(viper.GetString("credential_config_dir"))
 	if err != nil {
 		log.Fatalf("Unable to load credential configurations: %v", err)
@@ -105,6 +98,11 @@ func main() {
 
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Address = viper.GetString("vault.address")
+	vaultConfig.ConfigureTLS(&vault.TLSConfig{
+		ClientCert: viper.GetString("vault.client_cert"),
+		ClientKey:  viper.GetString("vault.client_key"),
+		Insecure:   false,
+	})
 	vaultClient, err := vault.NewClient(vaultConfig)
 	if err != nil {
 		log.Fatalf("Unable to create vault client %s\n", err)
@@ -115,15 +113,20 @@ func main() {
 		log.Fatalf("Unable to check health of vault %s\n", err)
 	}
 
-	token, err := credManager.GetToken(vaultClient)
+	secret, err := vaultClient.Logical().Write("/auth/cert/login", map[string]interface{}{})
 	if err != nil {
-		log.Fatalf("Unable to get or load token: %v", err)
+		log.Fatalf("Unable to auth using certificate endpoint: %v", err)
+	}
+
+	token, err := secret.TokenID()
+	if err != nil {
+		log.Fatalf("Unable to get token from secret: %v", err)
 	}
 
 	vaultClient.SetToken(token)
 
 	// Renew so that we have a populated Auth struct in the secret.
-	secret, err := vaultClient.Auth().Token().RenewSelf(0)
+	secret, err = vaultClient.Auth().Token().RenewSelf(0)
 	if err != nil {
 		log.Fatalf("Error renewing our own token: %v", err)
 	}
