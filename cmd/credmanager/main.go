@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PolarGeospatialCenter/credmanager/pkg/credentials"
+	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
@@ -113,20 +114,15 @@ func main() {
 		log.Fatalf("Unable to check health of vault %s\n", err)
 	}
 
-	secret, err := vaultClient.Logical().Write("/auth/cert/login", map[string]interface{}{})
+	token, err := vaulthelper.NewDefaultChainProvider(vaultClient).RetrieveToken()
 	if err != nil {
-		log.Fatalf("Unable to auth using certificate endpoint: %v", err)
-	}
-
-	token, err := secret.TokenID()
-	if err != nil {
-		log.Fatalf("Unable to get token from secret: %v", err)
+		log.Fatalf("Unable to retrieve token from default locations: %v", err)
 	}
 
 	vaultClient.SetToken(token)
 
 	// Renew so that we have a populated Auth struct in the secret.
-	secret, err = vaultClient.Auth().Token().RenewSelf(0)
+	secret, err := vaultClient.Auth().Token().RenewSelf(0)
 	if err != nil {
 		log.Fatalf("Error renewing our own token: %v", err)
 	}
