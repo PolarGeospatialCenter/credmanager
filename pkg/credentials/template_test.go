@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
 	vaulttest "github.com/PolarGeospatialCenter/dockertest/pkg/vault"
+	"github.com/PolarGeospatialCenter/vaulthelper/pkg/vaulthelper"
 	"github.com/go-test/deep"
 	vault "github.com/hashicorp/vault/api"
 	yaml "gopkg.in/yaml.v1"

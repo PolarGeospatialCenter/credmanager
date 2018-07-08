@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/PolarGeospatialCenter/credmanager/pkg/credentials"
-	"github.com/PolarGeospatialCenter/credmanager/pkg/vaulthelper"
+	"github.com/PolarGeospatialCenter/vaulthelper/pkg/vaulthelper"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
