@@ -11,7 +11,6 @@ vendor: Gopkg.lock
 
 deps: vendor
 	go get -u github.com/hashicorp/vault/api
-	go get -u github.com/hashicorp/consul/api
 
 docker:
 	docker build -t polargeospatialcenter/approle-secret-server -f Dockerfile.approle-secret-server .
