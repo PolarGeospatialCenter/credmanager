@@ -167,7 +167,12 @@ func main() {
 		case renewal := <-renewers.RenewCh():
 			log.Printf("Renewal: %s", renewal)
 		case err := <-renewers.DoneCh():
-			log.Printf("Got error: %v", err)
+			switch err.(type) {
+			case credentials.ErrMaxRetriesExceeded:
+				log.Fatalf("Exiting: %v", err)
+			default:
+				log.Printf("Got error: %v", err)
+			}
 		case renewal := <-tokenRenewer.RenewCh():
 			log.Printf("Renewed credmanager vault token: %v", renewal)
 		case err := <-tokenRenewer.DoneCh():
