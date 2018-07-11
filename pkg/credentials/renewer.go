@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+type ErrMaxRetriesExceeded struct {
+	MaxRetries uint
+	Message    string
+}
+
+func (e ErrMaxRetriesExceeded) Error() string {
+	return fmt.Sprintf("Exceeded maximum allowed retries (%d): %s", e.MaxRetries, e.Message)
+}
+
 type RenewableCredential interface {
 	Renew() error
 	MaxRenewInterval() time.Duration
@@ -93,7 +102,8 @@ func (r *CredentialRenewer) Stop() {
 }
 
 func (r *CredentialRenewer) Renew() {
-	timer := newRenewTimer(r.Credential.MaxRenewInterval(), 5)
+	maxFail := uint(5)
+	timer := newRenewTimer(r.Credential.MaxRenewInterval(), maxFail)
 	var failCount uint
 	failCount = 0
 	go func() {
@@ -103,6 +113,9 @@ func (r *CredentialRenewer) Renew() {
 				err := r.Credential.Renew()
 				if err != nil {
 					r.doneCh <- err
+					if failCount > maxFail {
+						r.doneCh <- ErrMaxRetriesExceeded{MaxRetries: maxFail, Message: fmt.Sprintf("credential: %s", r.Credential)}
+					}
 					timer.FailReset(r.Credential.MaxRenewInterval())
 					continue
 				}
