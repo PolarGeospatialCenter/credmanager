@@ -172,6 +172,7 @@ func main() {
 			log.Printf("Renewed credmanager vault token: %v", renewal)
 		case err := <-tokenRenewer.DoneCh():
 			log.Printf("Error renewing credmanager vault token: %v", err)
+			log.Fatalf("Unable to renew our own token, exiting.")
 		}
 	}
 }
