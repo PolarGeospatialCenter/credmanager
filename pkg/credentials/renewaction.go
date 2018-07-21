@@ -14,6 +14,6 @@ func (a *ReloadOrRestartSystemdUnit) Do() error {
 		return err
 	}
 	defer c.Close()
-	_, err = c.ReloadOrRestartUnit(a.UnitName, "", nil)
+	_, err = c.ReloadOrRestartUnit(a.UnitName, "replace", nil)
 	return err
 }
