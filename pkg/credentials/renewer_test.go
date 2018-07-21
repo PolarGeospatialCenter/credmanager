@@ -16,11 +16,15 @@ func (t *testAction) Do() error {
 }
 
 type testRenewable struct {
-	RenewCount uint
+	RenewCount  uint
+	MaxRenewals uint
 }
 
 func (t *testRenewable) Renew() error {
-	t.RenewCount += 1
+	if t.RenewCount >= t.MaxRenewals {
+		return fmt.Errorf("Max renewals exceeded")
+	}
+	t.RenewCount++
 	return nil
 }
 
@@ -33,7 +37,7 @@ func (t *testRenewable) String() string {
 }
 
 func TestRenewer(t *testing.T) {
-	test := &testRenewable{}
+	test := &testRenewable{MaxRenewals: 5}
 	action := &testAction{}
 	renewer := NewCredentialRenewer(test, action)
 	renewer.Renew()
@@ -57,4 +61,25 @@ func TestRenewer(t *testing.T) {
 		t.Errorf("Renewer didn't renew enough")
 	}
 
+}
+
+func TestRenewerMerger(t *testing.T) {
+	m := &RenewerMerger{}
+	test := &testRenewable{MaxRenewals: 1}
+	action := &testAction{}
+	renewer := NewCredentialRenewer(test, action)
+	m.AddRenewer(renewer)
+	renewer.Renew()
+	select {
+	case out := <-m.RenewCh():
+		t.Log(out)
+	case err := <-m.DoneCh():
+		t.Errorf("Unexpected error on first renewal: %v", err)
+	}
+	select {
+	case out := <-m.RenewCh():
+		t.Errorf("Unexpectedly renewed credential: %v", out)
+	case err := <-m.DoneCh():
+		t.Logf("Expected: %v", err)
+	}
 }

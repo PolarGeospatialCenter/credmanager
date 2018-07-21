@@ -112,7 +112,7 @@ func (r *CredentialRenewer) Renew() {
 			case <-timer.C:
 				err := r.Credential.Renew()
 				if err != nil {
-					r.doneCh <- err
+					r.doneCh <- fmt.Errorf("error renewing %s: %v", r.Credential.String(), err)
 					if failCount > maxFail {
 						r.doneCh <- ErrMaxRetriesExceeded{MaxRetries: maxFail, Message: fmt.Sprintf("credential: %s", r.Credential)}
 					}
@@ -170,7 +170,7 @@ func (l *RenewerMerger) DoneCh() <-chan error {
 		}
 		wg.Done()
 	}
-	wg.Add(len(l.renewCh))
+	wg.Add(len(l.doneCh))
 	for _, c := range l.doneCh {
 		go output(c)
 	}
