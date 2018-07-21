@@ -70,6 +70,7 @@ func TestRenewerMerger(t *testing.T) {
 	renewer := NewCredentialRenewer(test, action)
 	m.AddRenewer(renewer)
 	renewer.Renew()
+	defer renewer.Stop()
 	select {
 	case out := <-m.RenewCh():
 		t.Log(out)
