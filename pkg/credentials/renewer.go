@@ -118,9 +118,7 @@ func (r *CredentialRenewer) Renew() {
 					}
 					timer.FailReset(r.Credential.MaxRenewInterval())
 					continue
-				}
-
-				if err == nil && r.Action != nil {
+				} else if r.Action != nil {
 					actionErr := r.Action.Do()
 					if actionErr != nil {
 						r.doneCh <- fmt.Errorf("error while executing post renew action: %v", actionErr)
