@@ -149,6 +149,8 @@ type Renewer interface {
 type RenewerMerger struct {
 	renewCh []<-chan *RenewOutput
 	doneCh  []<-chan error
+	r       <-chan *RenewOutput
+	d       <-chan error
 }
 
 func (l *RenewerMerger) AddRenewer(r Renewer) {
@@ -156,7 +158,7 @@ func (l *RenewerMerger) AddRenewer(r Renewer) {
 	l.doneCh = append(l.doneCh, r.DoneCh())
 }
 
-func (l *RenewerMerger) DoneCh() <-chan error {
+func (l *RenewerMerger) makeDoneCh() <-chan error {
 	var wg sync.WaitGroup
 	out := make(chan error)
 
@@ -182,7 +184,14 @@ func (l *RenewerMerger) DoneCh() <-chan error {
 	return out
 }
 
-func (l *RenewerMerger) RenewCh() <-chan *RenewOutput {
+func (l *RenewerMerger) DoneCh() <-chan error {
+	if l.d == nil {
+		l.d = l.makeDoneCh()
+	}
+	return l.d
+}
+
+func (l *RenewerMerger) makeRenewCh() <-chan *RenewOutput {
 	var wg sync.WaitGroup
 	out := make(chan *RenewOutput)
 
@@ -206,4 +215,11 @@ func (l *RenewerMerger) RenewCh() <-chan *RenewOutput {
 		close(out)
 	}()
 	return out
+}
+
+func (l *RenewerMerger) RenewCh() <-chan *RenewOutput {
+	if l.r == nil {
+		l.r = l.makeRenewCh()
+	}
+	return l.r
 }
