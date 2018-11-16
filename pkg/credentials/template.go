@@ -64,19 +64,17 @@ func (t *CredentialTemplate) Manage(vaultClient *vault.Client) error {
 	cfg := ctemplatecfg.DefaultConfig()
 	vaultAddress := vaultClient.Address()
 	vaultToken := vaultClient.Token()
-	myFalse := false
-	myTrue := true
 	myVault := &ctemplatecfg.VaultConfig{
 		Address:    &vaultAddress,
 		Token:      &vaultToken,
-		RenewToken: &myFalse,
+		RenewToken: ctemplatecfg.Bool(false),
 	}
 	cfg.Vault = cfg.Vault.Merge(myVault)
 	templateConfig := ctemplatecfg.DefaultTemplateConfig()
 	outputPath := t.OutputFile.Path()
 	templateConfig.Destination = &outputPath
 	templateConfig.Source = &t.TemplateFile
-	templateConfig.CreateDestDirs = &myTrue
+	templateConfig.CreateDestDirs = ctemplatecfg.Bool(true)
 
 	cfg.Templates = &ctemplatecfg.TemplateConfigs{templateConfig}
 
