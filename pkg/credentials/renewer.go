@@ -3,6 +3,7 @@ package credentials
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -41,36 +42,65 @@ func (o *RenewOutput) String() string {
 
 type renewTimer struct {
 	*time.Timer
-	failCount uint
-	maxFail   uint
+	spreadPercent float64
+	defaultWindow time.Duration
+	failCount     uint
+	maxFail       uint
 }
 
-func newRenewTimer(d time.Duration, maxFail uint) *renewTimer {
+func newRenewTimer(initialExpirationWindow time.Duration, maxFail uint) *renewTimer {
 	t := &renewTimer{}
 	if maxFail == 0 {
 		maxFail = 3
 	}
+	t.spreadPercent = 0.10
+	if initialExpirationWindow <= 0 {
+		// negative or zero expiration windows are invalid, default to 24h and print a warning
+		log.Printf("Warning: initial expiration window set to invalid value (%s).  Defaulting to 24h.", initialExpirationWindow)
+		initialExpirationWindow = time.Hour * 24
+	}
+	t.defaultWindow = initialExpirationWindow
 	t.maxFail = maxFail
-	t.Timer = time.NewTimer(t.getInterval(d))
+	interval := initialExpirationWindow / 2
+	spread := 2*t.getRandomSpreadInterval(interval) - t.getSpreadInterval(interval)
+	t.Timer = time.NewTimer(interval + spread)
 	return t
 }
 
-func (t *renewTimer) getInterval(max time.Duration) time.Duration {
-	baseDelay := max / time.Duration(2<<t.maxFail)
-	return baseDelay * time.Duration(2<<t.failCount)
+func (t *renewTimer) getRandomSpreadInterval(baseInterval time.Duration) time.Duration {
+	if baseInterval < 0 {
+		return time.Duration(0)
+	}
+	randomSpreadNs := rand.Int63n(int64(t.spreadPercent * float64(baseInterval.Nanoseconds())))
+	return time.Duration(randomSpreadNs) * time.Nanosecond
 }
 
-func (t *renewTimer) FailReset(d time.Duration) {
+func (t *renewTimer) getSpreadInterval(baseInterval time.Duration) time.Duration {
+	return time.Duration(t.spreadPercent*float64(baseInterval.Nanoseconds())) * time.Nanosecond
+}
+
+func (t *renewTimer) getInterval(expirationWindow time.Duration) time.Duration {
+	if expirationWindow <= 0 {
+		expirationWindow = t.defaultWindow
+	}
+	expirationWindow = expirationWindow / 2
+	baseDelay := expirationWindow / time.Duration(2<<t.maxFail)
+	interval := baseDelay * time.Duration(2<<t.failCount)
+	spread := 2*t.getRandomSpreadInterval(interval) - t.getSpreadInterval(interval)
+	return interval + spread
+}
+
+func (t *renewTimer) FailReset(expirationWindow time.Duration) {
 	if t.failCount < t.maxFail {
 		t.failCount++
 	}
-	log.Printf("Timer reset for failed renewal, next renewal in %s", t.getInterval(d))
-	t.Timer.Reset(t.getInterval(d))
+	log.Printf("Timer reset for failed renewal, next renewal in %s", t.getInterval(expirationWindow))
+	t.Timer.Reset(t.getInterval(expirationWindow))
 }
 
-func (t *renewTimer) Reset(d time.Duration) {
+func (t *renewTimer) Reset(expirationWindow time.Duration) {
 	t.failCount = 0
-	t.Timer.Reset(t.getInterval(d))
+	t.Timer.Reset(t.getInterval(expirationWindow))
 }
 
 type CredentialRenewer struct {

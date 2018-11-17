@@ -63,6 +63,20 @@ func TestRenewer(t *testing.T) {
 
 }
 
+func TestRenewerExponentialBackoff(t *testing.T) {
+	rTimer := newRenewTimer(time.Second*256, 5)
+	for i, expectedInterval := range []time.Duration{time.Second * 2, time.Second * 4, time.Second * 8, time.Second * 16, time.Second * 32} {
+		interval := rTimer.getInterval(time.Second * 128)
+		t.Logf("Got renewal interval on attempt %d: %s", i, interval)
+		maxInterval := expectedInterval + rTimer.getSpreadInterval(expectedInterval)
+		minInterval := expectedInterval - rTimer.getSpreadInterval(expectedInterval)
+		if interval == expectedInterval || interval > maxInterval || interval < minInterval {
+			t.Errorf("Backoff interval doesn't match expected for failure %d: got %s, expected between %s and %s not exactly %s", i, interval, minInterval, maxInterval, expectedInterval)
+		}
+		rTimer.failCount++
+	}
+}
+
 func TestRenewerMerger(t *testing.T) {
 	m := &RenewerMerger{}
 	test := &testRenewable{MaxRenewals: 1}
