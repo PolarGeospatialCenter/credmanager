@@ -24,12 +24,8 @@ type PKICertificate struct {
 	renewer                             *CredentialRenewer
 }
 
-func (p *PKICertificate) Manage(vaultClient *vault.Client) error {
+func (p *PKICertificate) Initialize(vaultClient *vault.Client) error {
 	p.vaultClient = vaultClient
-	err := p.issue()
-	if err != nil {
-		return err
-	}
 
 	var postAction PostRenewAction
 	if p.Notifies != "" {
@@ -38,6 +34,10 @@ func (p *PKICertificate) Manage(vaultClient *vault.Client) error {
 	p.renewer = NewCredentialRenewer(p, postAction)
 	p.renewer.Renew()
 	return nil
+}
+
+func (p *PKICertificate) Issue() error {
+	return p.issue()
 }
 
 func (p *PKICertificate) MaxRenewInterval() time.Duration {

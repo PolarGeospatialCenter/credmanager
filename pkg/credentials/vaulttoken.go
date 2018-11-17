@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -18,11 +19,15 @@ type VaultToken struct {
 	vaultClient        *vault.Client
 }
 
-func (t *VaultToken) Manage(vaultClient *vault.Client) error {
+func (t *VaultToken) Initialize(vaultClient *vault.Client) error {
 	t.vaultClient = vaultClient
-	err := t.Issue()
-	if err != nil {
-		return err
+	if t.MaxRenewalInterval <= 0 {
+		// No renewal interval set, must get token now to update default interval
+		err := t.Issue()
+		if err != nil {
+			// unable to issue a token now, no renewal interval known
+			t.MaxRenewalInterval = time.Second * 10
+		}
 	}
 
 	t.renewer = NewCredentialRenewer(t, nil)
@@ -31,12 +36,17 @@ func (t *VaultToken) Manage(vaultClient *vault.Client) error {
 }
 
 func (t *VaultToken) updateRenewalInterval(ttl int) {
+	log.Printf("Updating renewal interval on token to: %ds", ttl)
 	if 0 < ttl && (ttl < int(t.MaxRenewalInterval.Seconds()) || t.MaxRenewalInterval.Seconds() == 0) {
 		t.MaxRenewalInterval = time.Duration(ttl) * time.Second
 	}
 }
 
 func (t *VaultToken) Issue() error {
+	return t.Renew()
+}
+
+func (t *VaultToken) getNewToken() error {
 	tokenRequest := &vault.TokenCreateRequest{Policies: t.Policies}
 	if t.MaxRenewalInterval.Seconds() > 0 {
 		tokenRequest.TTL = fmt.Sprintf("%d", int(t.MaxRenewalInterval.Seconds()))
@@ -64,7 +74,7 @@ func (t *VaultToken) Renew() error {
 		return nil
 	}
 
-	return fmt.Errorf("no valid token found to renew")
+	return t.getNewToken()
 }
 
 func (t *VaultToken) Stop() {

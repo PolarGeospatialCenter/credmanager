@@ -128,7 +128,7 @@ func TestPKICertManage(t *testing.T) {
 		IPSubjectAlternativeNames:           []string{"10.2.0.1"},
 		BackendMountPoint:                   "pki",
 		RoleName:                            "testhost",
-		LeaseDuration:                       1 * time.Second,
+		LeaseDuration:                       2 * time.Second,
 	}
 
 	ctx := context.Background()
@@ -167,12 +167,17 @@ func TestPKICertManage(t *testing.T) {
 
 	vaultClient.SetToken(secret.Auth.ClientToken)
 
-	err = cert.Manage(vaultClient)
+	err = cert.Initialize(vaultClient)
 	if err != nil {
 		t.Fatalf("Unable to start cert management process: %v", err)
 	}
 
-	log.Printf("Manage function returned")
+	err = cert.Issue()
+	if err != nil {
+		t.Fatalf("Unable to issue initial credential: %v", err)
+	}
+
+	log.Printf("Issued initial credential returned")
 
 	info, err := os.Stat(certFile.Path())
 	if err != nil && os.IsNotExist(err) {
