@@ -139,6 +139,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2a5888946cdbc8aa360fd43301f9fc7869d663f60d5eedae7d4e6e5e4f06f2bf"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  pruneopts = ""
+  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
+
+[[projects]]
+  branch = "master"
   digest = "1:a7abd0629ff6cc5b4abc6b415fe0c0c279440083672c2d2cdb14d958eb0c637e"
   name = "github.com/hashicorp/consul"
   packages = ["api"]
@@ -187,12 +195,28 @@
   revision = "886a7fbe3eb1c874d46f623bfa70af45f425b3d1"
 
 [[projects]]
+  digest = "1:62327a30877f944b5fd23d130487731a3004b319ff1864daa677d7e554898cc1"
+  name = "github.com/hashicorp/go-retryablehttp"
+  packages = ["."]
+  pruneopts = ""
+  revision = "4502c0ecdaf0b50d857611af23831260f99be6bf"
+  version = "v0.5.0"
+
+[[projects]]
   branch = "master"
   digest = "1:ff65bf6fc4d1116f94ac305342725c21b55c16819c2606adc8f527755716937f"
   name = "github.com/hashicorp/go-rootcerts"
   packages = ["."]
   pruneopts = ""
   revision = "6bb64b370b90e7ef1fa532be9e591a81c3493e00"
+
+[[projects]]
+  branch = "master"
+  digest = "1:fd8ec2359315965bb6b84fd8e45cd5e8b58b80d8430dc96c8c5dfce46d30dbfc"
+  name = "github.com/hashicorp/go-sockaddr"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6d291a969b86c4b633730bfc6b8b9d64c3aafed9"
 
 [[projects]]
   branch = "master"
@@ -220,6 +244,22 @@
   pruneopts = ""
   revision = "d6574a5bb1226678d7010325fb6c985db20ee458"
   version = "v0.8.1"
+
+[[projects]]
+  digest = "1:21c9f61b01d9bd8e8aee89e260e98c2940fab65853c6c5132e418b463dec5102"
+  name = "github.com/hashicorp/vault"
+  packages = [
+    "api",
+    "helper/compressutil",
+    "helper/consts",
+    "helper/hclutil",
+    "helper/jsonutil",
+    "helper/parseutil",
+    "helper/strutil",
+  ]
+  pruneopts = ""
+  revision = "a59ffa4a0f09bbf198241fe6793a96722789b639"
+  version = "v0.11.5"
 
 [[projects]]
   digest = "1:961dc3b1d11f969370533390fdf203813162980c858e1dabe827b60940c909a5"
@@ -270,12 +310,31 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:b1df71d0b2287062b90c6b4c8d3c934440aa0d2eb201d03f22be0f045860b4aa"
+  name = "github.com/pierrec/lz4"
+  packages = [
+    ".",
+    "internal/xxh32",
+  ]
+  pruneopts = ""
+  revision = "635575b42742856941dbc767b44905bb9ba083f6"
+  version = "v2.0.7"
+
+[[projects]]
   digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
   name = "github.com/pkg/errors"
   packages = ["."]
   pruneopts = ""
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  digest = "1:29df111893b87bd947307aab294c042e900c2f29c53ad3896127955b4283728a"
+  name = "github.com/ryanuber/go-glob"
+  packages = ["."]
+  pruneopts = ""
+  revision = "572520ed46dbddaed19ea3d9541bdd0494163693"
+  version = "v0.1"
 
 [[projects]]
   digest = "1:d0431c2fd72e39ee43ea7742322abbc200c3e704c9102c5c3c2e2e667095b0ca"
@@ -327,6 +386,10 @@
   packages = [
     "context",
     "context/ctxhttp",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
     "internal/socks",
     "proxy",
   ]
@@ -348,16 +411,32 @@
   digest = "1:5acd3512b047305d49e8763eef7ba423901e85d5dd2fd1e71778a0ea8de10bd4"
   name = "golang.org/x/text"
   packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
     "internal/gen",
+    "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "language",
+    "secure/bidirule",
     "transform",
+    "unicode/bidi",
     "unicode/cldr",
     "unicode/norm",
+    "unicode/rangetable",
   ]
   pruneopts = ""
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:14cb1d4240bcbbf1386ae763957e04e2765ec4e4ce7bb2769d05fa6faccd774e"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  pruneopts = ""
+  revision = "85acf8d2951cb2a3bde7632f9ff273ef0379bcbd"
 
 [[projects]]
   branch = "v1"
@@ -385,6 +464,7 @@
     "github.com/go-test/deep",
     "github.com/hashicorp/consul-template/config",
     "github.com/hashicorp/consul-template/manager",
+    "github.com/hashicorp/vault/api",
     "github.com/spf13/viper",
     "gopkg.in/yaml.v1",
     "gopkg.in/yaml.v2",
