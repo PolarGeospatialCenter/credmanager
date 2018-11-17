@@ -38,10 +38,12 @@ ignored = ["github.com/hashicorp/vault/api*"]
   name = "github.com/spf13/viper"
   version = "1.0.2"
 
+# This package doesn't allow testing on mac beyond v4.1.0 due to a function that
+# only builds on other platforms.  Pinning version for now.
+[[override]]
+  name = "github.com/godbus/dbus"
+  version = "4.1.0"
+
 [[constraint]]
   branch = "v1"
   name = "gopkg.in/yaml.v1"
-
-[[constraint]]
-  name = "gopkg.in/yaml.v2"
-  version = "2.2.1"
