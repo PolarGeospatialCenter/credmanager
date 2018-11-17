@@ -47,13 +47,17 @@ type renewTimer struct {
 
 func newRenewTimer(d time.Duration, maxFail uint) *renewTimer {
 	t := &renewTimer{}
-	t.Timer = time.NewTimer(t.getInterval(d))
+	if maxFail == 0 {
+		maxFail = 3
+	}
 	t.maxFail = maxFail
+	t.Timer = time.NewTimer(t.getInterval(d))
 	return t
 }
 
 func (t *renewTimer) getInterval(max time.Duration) time.Duration {
-	return max / time.Duration(2<<t.failCount)
+	baseDelay := max / time.Duration(2<<t.maxFail)
+	return baseDelay * time.Duration(2<<t.failCount)
 }
 
 func (t *renewTimer) FailReset(d time.Duration) {
