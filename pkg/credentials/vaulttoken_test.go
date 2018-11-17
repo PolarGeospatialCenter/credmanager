@@ -101,9 +101,14 @@ func TestVaultTokenManage(t *testing.T) {
 
 	vaultClient.SetToken(issuerSecret.Auth.ClientToken)
 
-	err = token.Manage(vaultClient)
+	err = token.Initialize(vaultClient)
 	if err != nil {
 		t.Fatalf("Unable to start token management process: %v", err)
+	}
+
+	err = token.Issue()
+	if err != nil {
+		t.Fatalf("Unable to issue token: %v", err)
 	}
 
 	info, err := os.Stat(tokenFile.Path())

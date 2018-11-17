@@ -89,9 +89,14 @@ func TestCredentialTemplate(t *testing.T) {
 	}
 
 	// run Manage
-	err = tmpl.Manage(vaultClient)
+	err = tmpl.Initialize(vaultClient)
 	if err != nil {
-		t.Fatalf("Unable to run Manage(): %v", err)
+		t.Fatalf("Unable to run Initialize(): %v", err)
+	}
+
+	err = tmpl.Issue()
+	if err != nil {
+		t.Fatalf("Unable to run Issue(): %v", err)
 	}
 	// verify template output matches expected
 

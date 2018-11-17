@@ -59,7 +59,7 @@ type CredentialTemplate struct {
 	runner       *ctemplatemgr.Runner
 }
 
-func (t *CredentialTemplate) Manage(vaultClient *vault.Client) error {
+func (t *CredentialTemplate) Initialize(vaultClient *vault.Client) error {
 	t.vaultClient = vaultClient
 	cfg := ctemplatecfg.DefaultConfig()
 	vaultAddress := vaultClient.Address()
@@ -84,13 +84,17 @@ func (t *CredentialTemplate) Manage(vaultClient *vault.Client) error {
 	}
 	t.runner = runner
 
-	go t.runner.Start()
 	var action PostRenewAction
 	if t.Notifies != "" {
 		action = &ReloadOrRestartSystemdUnit{UnitName: t.Notifies}
 	}
 	t.renewer = newCredentialTemplateRenewer(t.runner, t, action)
 
+	return nil
+}
+
+func (t *CredentialTemplate) Issue() error {
+	go t.runner.Start()
 	return nil
 }
 

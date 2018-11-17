@@ -150,9 +150,14 @@ func TestSSHCertManage(t *testing.T) {
 	s, err := vaultClient.Auth().Token().LookupSelf()
 	t.Log(s.Data["policies"])
 
-	err = cert.Manage(vaultClient)
+	err = cert.Initialize(vaultClient)
 	if err != nil {
 		t.Fatalf("Unable to start cert management process: %v", err)
+	}
+
+	err = cert.Issue()
+	if err != nil {
+		t.Fatalf("Unable to issue initial cert: %v", err)
 	}
 
 	info, err := os.Stat(certFile.Path())

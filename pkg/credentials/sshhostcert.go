@@ -22,13 +22,8 @@ type SSHHostCertificate struct {
 	renewer           *CredentialRenewer
 }
 
-func (s *SSHHostCertificate) Manage(vaultClient *vault.Client) error {
+func (s *SSHHostCertificate) Initialize(vaultClient *vault.Client) error {
 	s.vaultClient = vaultClient
-	secret, err := s.sign()
-	if err != nil {
-		return err
-	}
-	s.write(secret)
 
 	var postAction PostRenewAction
 	if s.Notifies != "" {
@@ -40,13 +35,17 @@ func (s *SSHHostCertificate) Manage(vaultClient *vault.Client) error {
 	return nil
 }
 
-func (s *SSHHostCertificate) Renew() error {
+func (s *SSHHostCertificate) Issue() error {
 	secret, err := s.sign()
 	if err != nil {
 		return err
 	}
 	s.write(secret)
 	return nil
+}
+
+func (s *SSHHostCertificate) Renew() error {
+	return s.Issue()
 }
 
 func (s *SSHHostCertificate) MaxRenewInterval() time.Duration {

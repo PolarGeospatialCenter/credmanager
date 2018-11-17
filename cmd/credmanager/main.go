@@ -22,7 +22,8 @@ import (
 // When stop is called the renewal process should stop.
 type Credential interface {
 	// Issues the credential, sets up a renewer, and starts it
-	Manage(*vault.Client) error
+	Initialize(*vault.Client) error
+	Issue() error
 	Stop()
 	Renewer() credentials.Renewer
 	fmt.Stringer
@@ -141,12 +142,18 @@ func main() {
 	renewers := &credentials.RenewerMerger{}
 
 	for _, credential := range credList {
-		credErr := credential.Manage(vaultClient)
+		credErr := credential.Initialize(vaultClient)
 		if credErr != nil {
-			log.Printf("Unable to issue credential %s: %v", credential, credErr)
+			log.Printf("Unable to initialize credential %s: %v", credential, credErr)
 		}
 		renewers.AddRenewer(credential.Renewer())
 		defer credential.Stop()
+
+		credErr = credential.Issue()
+		if credErr != nil {
+			log.Printf("Unable to issue initial credential %s: %v", credential, credErr)
+		}
+
 		log.Printf("Issued credential and started renewer: %v", credential)
 	}
 
