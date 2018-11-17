@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -22,10 +23,12 @@ type PKICertificate struct {
 	Notifies                            string          `yaml:"notifies"`
 	vaultClient                         *vault.Client
 	renewer                             *CredentialRenewer
+	configuredDuration                  time.Duration
 }
 
 func (p *PKICertificate) Initialize(vaultClient *vault.Client) error {
 	p.vaultClient = vaultClient
+	p.configuredDuration = p.LeaseDuration
 
 	var postAction PostRenewAction
 	if p.Notifies != "" {
@@ -64,6 +67,9 @@ func (p *PKICertificate) issue() error {
 	pki_request["common_name"] = p.CommonName
 	pki_request["alt_names"] = strings.Join(p.AlternativeNames, ",")
 	pki_request["ip_sans"] = strings.Join(p.IPSubjectAlternativeNames, ",")
+	if p.configuredDuration != time.Duration(0) {
+		pki_request["ttl"] = int64(p.configuredDuration.Seconds())
+	}
 	request.SetJSONBody(pki_request)
 	response, err := p.vaultClient.RawRequest(request)
 	if err != nil {
@@ -79,6 +85,16 @@ func (p *PKICertificate) issue() error {
 		return err
 	}
 	data := output["data"].(map[string]interface{})
+	expiration, ok := data["expiration"].(json.Number)
+	if ok {
+		expiresAt, err := expiration.Int64()
+		if err != nil {
+			return fmt.Errorf("error parsing certificate expiration time: %v", err)
+		}
+
+		p.LeaseDuration = time.Until(time.Unix(expiresAt, 0))
+	}
+
 	err = p.CertificateAuthorityCertificateFile.Write(data["issuing_ca"].(string))
 	if err != nil {
 		return err
