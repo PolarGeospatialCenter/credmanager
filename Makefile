@@ -12,5 +12,4 @@ vendor: Gopkg.lock
 deps: vendor
 
 docker:
-	docker build -t polargeospatialcenter/approle-secret-server -f Dockerfile.approle-secret-server .
 	docker build -t polargeospatialcenter/credmanager -f Dockerfile.credmanager .
