@@ -23,7 +23,7 @@ func (t *VaultToken) Initialize(vaultClient *vault.Client) error {
 	t.vaultClient = vaultClient
 	if t.MaxRenewalInterval <= 0 {
 		// No renewal interval set, must get token now to update default interval
-		err := t.Issue()
+		err := t.getNewToken()
 		if err != nil {
 			// unable to issue a token now, no renewal interval known
 			t.MaxRenewalInterval = time.Second * 10
@@ -40,10 +40,6 @@ func (t *VaultToken) updateRenewalInterval(ttl int) {
 	if 0 < ttl && (ttl < int(t.MaxRenewalInterval.Seconds()) || t.MaxRenewalInterval.Seconds() == 0) {
 		t.MaxRenewalInterval = time.Duration(ttl) * time.Second
 	}
-}
-
-func (t *VaultToken) Issue() error {
-	return t.Renew()
 }
 
 func (t *VaultToken) getNewToken() error {

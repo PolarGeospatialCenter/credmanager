@@ -23,7 +23,6 @@ import (
 type Credential interface {
 	// Issues the credential, sets up a renewer, and starts it
 	Initialize(*vault.Client) error
-	Issue() error
 	Stop()
 	Renewer() credentials.Renewer
 	fmt.Stringer
@@ -148,13 +147,6 @@ func main() {
 		}
 		renewers.AddRenewer(credential.Renewer())
 		defer credential.Stop()
-
-		credErr = credential.Issue()
-		if credErr != nil {
-			log.Printf("Unable to issue initial credential %s: %v", credential, credErr)
-		}
-
-		log.Printf("Issued credential and started renewer: %v", credential)
 	}
 
 	signalChan := make(chan os.Signal, 1)

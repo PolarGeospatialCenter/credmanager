@@ -89,11 +89,6 @@ func (t *CredentialTemplate) Initialize(vaultClient *vault.Client) error {
 		action = &ReloadOrRestartSystemdUnit{UnitName: t.Notifies}
 	}
 	t.renewer = newCredentialTemplateRenewer(t.runner, t, action)
-
-	return nil
-}
-
-func (t *CredentialTemplate) Issue() error {
 	go t.runner.Start()
 	return nil
 }

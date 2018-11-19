@@ -106,10 +106,7 @@ func TestVaultTokenManage(t *testing.T) {
 		t.Fatalf("Unable to start token management process: %v", err)
 	}
 
-	err = token.Issue()
-	if err != nil {
-		t.Fatalf("Unable to issue token: %v", err)
-	}
+	<-token.Renewer().RenewCh()
 
 	info, err := os.Stat(tokenFile.Path())
 	if err != nil && os.IsNotExist(err) {

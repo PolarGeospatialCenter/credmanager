@@ -172,11 +172,7 @@ func TestPKICertManage(t *testing.T) {
 		t.Fatalf("Unable to start cert management process: %v", err)
 	}
 
-	err = cert.Issue()
-	if err != nil {
-		t.Fatalf("Unable to issue initial credential: %v", err)
-	}
-
+	<-cert.Renewer().RenewCh()
 	log.Printf("Issued initial credential returned")
 
 	info, err := os.Stat(certFile.Path())

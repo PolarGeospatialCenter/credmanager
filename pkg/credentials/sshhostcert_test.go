@@ -155,10 +155,7 @@ func TestSSHCertManage(t *testing.T) {
 		t.Fatalf("Unable to start cert management process: %v", err)
 	}
 
-	err = cert.Issue()
-	if err != nil {
-		t.Fatalf("Unable to issue initial cert: %v", err)
-	}
+	<-cert.Renewer().RenewCh()
 
 	info, err := os.Stat(certFile.Path())
 	if err != nil && os.IsNotExist(err) {
