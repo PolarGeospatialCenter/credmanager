@@ -99,7 +99,7 @@ func main() {
 
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Address = viper.GetString("vault.address")
-	vaultConfig.Timeout = time.Second * 5
+	vaultConfig.Timeout = time.Second * 10
 	vaultConfig.ConfigureTLS(&vault.TLSConfig{
 		ClientCert: viper.GetString("vault.client_cert"),
 		ClientKey:  viper.GetString("vault.client_key"),
@@ -108,11 +108,6 @@ func main() {
 	vaultClient, err := vault.NewClient(vaultConfig)
 	if err != nil {
 		log.Fatalf("Unable to create vault client %s\n", err)
-	}
-
-	_, err = vaultClient.Sys().Health()
-	if err != nil {
-		log.Fatalf("Unable to check health of vault %s\n", err)
 	}
 
 	token, err := vaulthelper.NewDefaultChainProvider(vaultClient).RetrieveToken()
