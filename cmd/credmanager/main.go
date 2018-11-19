@@ -99,7 +99,7 @@ func main() {
 
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Address = viper.GetString("vault.address")
-	vaultConfig.Timeout = time.Second * 10
+	vaultConfig.Timeout = time.Second * 2
 	vaultConfig.ConfigureTLS(&vault.TLSConfig{
 		ClientCert: viper.GetString("vault.client_cert"),
 		ClientKey:  viper.GetString("vault.client_key"),
@@ -110,19 +110,37 @@ func main() {
 		log.Fatalf("Unable to create vault client %s\n", err)
 	}
 
-	token, err := vaulthelper.NewDefaultChainProvider(vaultClient).RetrieveToken()
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from default locations: %v", err)
-	}
+	tokenTimer := credentials.NewRenewTimer(0, 3*time.Hour, 5*time.Second, 10)
 
-	vaultClient.SetToken(token)
+	var secret *vault.Secret
+	for attempt := 0; attempt < 7; attempt++ {
+		<-tokenTimer.C
+		token, err := vaulthelper.NewDefaultChainProvider(vaultClient).RetrieveToken()
+		if err != nil {
+			log.Printf("Unable to retrieve token, retrying (attempt %d): %v", attempt, err)
+			tokenTimer.FailReset(3 * time.Hour)
+			continue
+		}
+
+		vaultClient.SetToken(token)
+
+		secret, err = vaultClient.Auth().Token().RenewSelf(0)
+		if err != nil {
+			log.Printf("Error renewing our own token, retrying (attempt %d): %v", attempt, err)
+			secret = nil
+			tokenTimer.FailReset(3 * time.Hour)
+			continue
+		}
+		log.Printf("Renewed our vault token.")
+		break
+	}
+	tokenTimer.Stop()
+
+	if secret == nil {
+		log.Fatalf("Unable to get a valid token.  Refusing to start.")
+	}
 
 	// Renew so that we have a populated Auth struct in the secret.
-	secret, err := vaultClient.Auth().Token().RenewSelf(0)
-	if err != nil {
-		log.Fatalf("Error renewing our own token: %v", err)
-	}
-	log.Printf("Renewed our vault token.")
 
 	gracePeriod := 24 * time.Hour
 	tokenRenewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret, Grace: gracePeriod})

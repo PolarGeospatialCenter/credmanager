@@ -137,7 +137,7 @@ func (r *CredentialRenewer) Stop() {
 
 func (r *CredentialRenewer) Renew() {
 	maxFail := uint(18)
-	timer := NewRenewTimer(0, r.Credential.MaxRenewInterval(), 1*time.Second, 10)
+	timer := NewRenewTimer(0, r.Credential.MaxRenewInterval(), 5*time.Second, 10)
 	var failCount uint
 	failCount = 0
 	go func() {
