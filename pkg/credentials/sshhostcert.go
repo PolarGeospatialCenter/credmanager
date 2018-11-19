@@ -35,17 +35,13 @@ func (s *SSHHostCertificate) Initialize(vaultClient *vault.Client) error {
 	return nil
 }
 
-func (s *SSHHostCertificate) Issue() error {
+func (s *SSHHostCertificate) Renew() error {
 	secret, err := s.sign()
 	if err != nil {
 		return err
 	}
 	s.write(secret)
 	return nil
-}
-
-func (s *SSHHostCertificate) Renew() error {
-	return s.Issue()
 }
 
 func (s *SSHHostCertificate) MaxRenewInterval() time.Duration {

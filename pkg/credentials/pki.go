@@ -39,10 +39,6 @@ func (p *PKICertificate) Initialize(vaultClient *vault.Client) error {
 	return nil
 }
 
-func (p *PKICertificate) Issue() error {
-	return p.issue()
-}
-
 func (p *PKICertificate) MaxRenewInterval() time.Duration {
 	return p.LeaseDuration
 }

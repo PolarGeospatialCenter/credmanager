@@ -40,67 +40,67 @@ func (o *RenewOutput) String() string {
 	return fmt.Sprintf("%s renewed at: %s", o.Source, o.RenewalTime)
 }
 
-type renewTimer struct {
+type RenewTimer struct {
 	*time.Timer
-	spreadPercent float64
-	defaultWindow time.Duration
-	failCount     uint
-	maxFail       uint
+	jitterPercent        int64
+	initialFailInterval  time.Duration
+	defaultRenewalWindow time.Duration
+	failCount            uint
 }
 
-func newRenewTimer(initialExpirationWindow time.Duration, maxFail uint) *renewTimer {
-	t := &renewTimer{}
-	if maxFail == 0 {
-		maxFail = 3
+func NewRenewTimer(initialDelay, expirationWindow, initialFailInterval time.Duration, jitterPercent int64) *RenewTimer {
+	t := &RenewTimer{}
+	if initialFailInterval <= time.Duration(0) {
+		initialFailInterval = 1 * time.Second
 	}
-	t.spreadPercent = 0.10
-	if initialExpirationWindow <= 0 {
+	t.initialFailInterval = initialFailInterval
+	t.jitterPercent = jitterPercent
+
+	if expirationWindow <= 0 {
 		// negative or zero expiration windows are invalid, default to 24h and print a warning
-		log.Printf("Warning: initial expiration window set to invalid value (%s).  Defaulting to 24h.", initialExpirationWindow)
-		initialExpirationWindow = time.Hour * 24
+		log.Printf("Warning: initial expiration window set to invalid value (%s).  Defaulting to 24h.", expirationWindow)
+		expirationWindow = time.Hour * 24
 	}
-	t.defaultWindow = initialExpirationWindow
-	t.maxFail = maxFail
-	interval := initialExpirationWindow / 2
-	spread := 2*t.getRandomSpreadInterval(interval) - t.getSpreadInterval(interval)
-	t.Timer = time.NewTimer(interval + spread)
+	t.defaultRenewalWindow = expirationWindow
+	t.Timer = time.NewTimer(initialDelay)
 	return t
 }
 
-func (t *renewTimer) getRandomSpreadInterval(baseInterval time.Duration) time.Duration {
-	if baseInterval < 0 {
-		return time.Duration(0)
+func (t *RenewTimer) jitterWindowNanoseconds(interval time.Duration) int64 {
+	return t.jitterPercent * interval.Nanoseconds() / 100
+}
+
+func (t *RenewTimer) getSplay(interval time.Duration) time.Duration {
+	jitterWindowNs := t.jitterWindowNanoseconds(interval)
+	randomSpreadNs := rand.Int63n(jitterWindowNs << 1)
+	return time.Duration(randomSpreadNs-jitterWindowNs) * time.Nanosecond
+}
+
+func (t *RenewTimer) getInterval(expirationWindow time.Duration, failCount uint) time.Duration {
+	if expirationWindow == time.Duration(0) {
+		expirationWindow = t.defaultRenewalWindow
 	}
-	randomSpreadNs := rand.Int63n(int64(t.spreadPercent * float64(baseInterval.Nanoseconds())))
-	return time.Duration(randomSpreadNs) * time.Nanosecond
-}
 
-func (t *renewTimer) getSpreadInterval(baseInterval time.Duration) time.Duration {
-	return time.Duration(t.spreadPercent*float64(baseInterval.Nanoseconds())) * time.Nanosecond
-}
-
-func (t *renewTimer) getInterval(expirationWindow time.Duration) time.Duration {
-	if expirationWindow <= 0 {
-		expirationWindow = t.defaultWindow
+	var interval time.Duration
+	if failCount == 0 {
+		interval = expirationWindow / 2
+	} else {
+		interval = t.initialFailInterval * time.Duration(1<<(failCount-1))
 	}
-	expirationWindow = expirationWindow / 2
-	baseDelay := expirationWindow / time.Duration(2<<t.maxFail)
-	interval := baseDelay * time.Duration(2<<t.failCount)
-	spread := 2*t.getRandomSpreadInterval(interval) - t.getSpreadInterval(interval)
-	return interval + spread
+	return interval + t.getSplay(interval)
 }
 
-func (t *renewTimer) FailReset(expirationWindow time.Duration) {
-	if t.failCount < t.maxFail {
-		t.failCount++
-	}
-	log.Printf("Timer reset for failed renewal, next renewal in %s", t.getInterval(expirationWindow))
-	t.Timer.Reset(t.getInterval(expirationWindow))
+// FailReset resets the timer using the exponential backoff time and increments
+// the failure count
+func (t *RenewTimer) FailReset(expirationWindow time.Duration) {
+	t.failCount++
+	t.Timer.Reset(t.getInterval(expirationWindow, t.failCount))
 }
 
-func (t *renewTimer) Reset(expirationWindow time.Duration) {
+// Reset resets the timer using the success interval
+func (t *RenewTimer) Reset(expirationWindow time.Duration) {
 	t.failCount = 0
-	t.Timer.Reset(t.getInterval(expirationWindow))
+	t.Timer.Reset(t.getInterval(expirationWindow, t.failCount))
 }
 
 type CredentialRenewer struct {
@@ -136,8 +136,8 @@ func (r *CredentialRenewer) Stop() {
 }
 
 func (r *CredentialRenewer) Renew() {
-	maxFail := uint(5)
-	timer := newRenewTimer(r.Credential.MaxRenewInterval(), maxFail)
+	maxFail := uint(18)
+	timer := NewRenewTimer(0, r.Credential.MaxRenewInterval(), 1*time.Second, 10)
 	var failCount uint
 	failCount = 0
 	go func() {

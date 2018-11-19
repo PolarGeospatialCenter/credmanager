@@ -93,11 +93,6 @@ func TestCredentialTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to run Initialize(): %v", err)
 	}
-
-	err = tmpl.Issue()
-	if err != nil {
-		t.Fatalf("Unable to run Issue(): %v", err)
-	}
 	// verify template output matches expected
 
 	cases := []string{"Hello Vault!", "updated!", "updated again!", "updated yet again!"}
