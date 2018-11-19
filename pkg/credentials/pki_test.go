@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testCertPolicy = `path "pki/issue/testhost" {
+	testCertPolicy = `path "pki/sign/testhost" {
 		capabilities = ["update"]
 }`
 )
