@@ -99,6 +99,7 @@ func main() {
 
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Address = viper.GetString("vault.address")
+	vaultConfig.Timeout = time.Second * 5
 	vaultConfig.ConfigureTLS(&vault.TLSConfig{
 		ClientCert: viper.GetString("vault.client_cert"),
 		ClientKey:  viper.GetString("vault.client_key"),
