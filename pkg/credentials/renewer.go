@@ -77,7 +77,7 @@ func (t *RenewTimer) getSplay(interval time.Duration) time.Duration {
 }
 
 func (t *RenewTimer) getInterval(expirationWindow time.Duration, failCount uint) time.Duration {
-	if expirationWindow == time.Duration(0) {
+	if expirationWindow <= time.Duration(0) {
 		expirationWindow = t.defaultRenewalWindow
 	}
 
