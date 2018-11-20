@@ -124,6 +124,7 @@ func main() {
 
 		vaultClient.SetToken(token)
 
+		// Renew so that we have a populated Auth struct in the secret.
 		secret, err = vaultClient.Auth().Token().RenewSelf(0)
 		if err != nil {
 			log.Printf("Error renewing our own token, retrying (attempt %d): %v", attempt, err)
@@ -139,8 +140,6 @@ func main() {
 	if secret == nil {
 		log.Fatalf("Unable to get a valid token.  Refusing to start.")
 	}
-
-	// Renew so that we have a populated Auth struct in the secret.
 
 	gracePeriod := 24 * time.Hour
 	tokenRenewer, err := vaultClient.NewRenewer(&vault.RenewerInput{Secret: secret, Grace: gracePeriod})
