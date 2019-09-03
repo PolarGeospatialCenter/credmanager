@@ -74,6 +74,7 @@ func (t *CredentialTemplate) Initialize(vaultClient *vault.Client) error {
 	outputPath := t.OutputFile.Path()
 	templateConfig.Destination = &outputPath
 	templateConfig.Source = &t.TemplateFile
+	templateConfig.Perms = &t.OutputFile.Mode
 	templateConfig.CreateDestDirs = ctemplatecfg.Bool(true)
 
 	cfg.Templates = &ctemplatecfg.TemplateConfigs{templateConfig}

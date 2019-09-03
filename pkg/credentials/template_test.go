@@ -124,6 +124,14 @@ func TestCredentialTemplate(t *testing.T) {
 			if contents != expectedOutput {
 				t.Errorf("Rendered output file doesn't match expected value: actual: '%s', expected: '%s'", contents, expectedOutput)
 			}
+
+			statInfo, err := os.Stat(outFile.Path())
+			if err != nil {
+				t.Errorf("Got error looking up stat information on rendered template: %v", err)
+			}
+			if statInfo.Mode() != 0600 {
+				t.Errorf("Wrong mode on output file, expected '0600', got '%o'", statInfo.Mode())
+			}
 		case err := <-tmpl.Renewer().DoneCh():
 			if err != nil {
 				t.Errorf("Error rendering for %s: %v", expectedOutput, err)
