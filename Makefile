@@ -2,14 +2,9 @@
 
 all: test docker
 
-test: deps
-	go test -cover ./cmd/...
-	go test -cover ./pkg/...
-
-vendor: Gopkg.lock
-	dep ensure -vendor-only
-
-deps: vendor
+test: 
+	go test -mod=readonly -cover ./cmd/...
+	go test -mod=readonly -cover ./pkg/...
 
 docker:
 	docker build -t polargeospatialcenter/credmanager -f Dockerfile.credmanager .

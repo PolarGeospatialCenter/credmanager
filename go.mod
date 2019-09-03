@@ -1,0 +1,51 @@
+module github.com/PolarGeospatialCenter/credmanager
+
+go 1.12
+
+require (
+	github.com/Microsoft/go-winio v0.4.11
+	github.com/PolarGeospatialCenter/dockertest v0.0.0-20180520181849-b8ef6427dd95
+	github.com/PolarGeospatialCenter/vaulthelper v0.0.0-20180708220926-b939d74c3bd2
+	github.com/aws/aws-sdk-go v1.15.78
+	github.com/burntsushi/toml v0.3.1
+	github.com/coreos/go-systemd v0.0.0-20180202092358-40e2722dffea
+	github.com/docker/distribution v2.6.2+incompatible
+	github.com/docker/docker v1.13.1
+	github.com/docker/go-connections v0.3.0
+	github.com/docker/go-units v0.3.3
+	github.com/fsnotify/fsnotify v1.4.7
+	github.com/go-test/deep v1.0.1
+	github.com/godbus/dbus v4.1.0+incompatible
+	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+	github.com/hashicorp/consul v0.0.0-20181116231704-eba25a143821
+	github.com/hashicorp/consul-template v0.19.5
+	github.com/hashicorp/errwrap v1.0.0
+	github.com/hashicorp/go-cleanhttp v0.5.0
+	github.com/hashicorp/go-multierror v1.0.0
+	github.com/hashicorp/go-retryablehttp v0.5.0
+	github.com/hashicorp/go-rootcerts v0.0.0-20160503143440-6bb64b370b90
+	github.com/hashicorp/go-sockaddr v0.0.0-20180320115054-6d291a969b86
+	github.com/hashicorp/hcl v1.0.0
+	github.com/hashicorp/serf v0.8.1
+	github.com/hashicorp/vault v0.11.5
+	github.com/magiconair/properties v1.8.0
+	github.com/mattn/go-shellwords v1.0.3
+	github.com/mitchellh/go-homedir v1.0.0
+	github.com/mitchellh/hashstructure v1.0.0
+	github.com/mitchellh/mapstructure v1.1.2
+	github.com/pelletier/go-toml v1.2.0
+	github.com/pierrec/lz4 v0.0.0-20181005164709-635575b42742
+	github.com/pkg/errors v0.8.0
+	github.com/ryanuber/go-glob v0.0.0-20160226084822-572520ed46db
+	github.com/spf13/afero v1.1.2
+	github.com/spf13/cast v1.3.0
+	github.com/spf13/jwalterweatherman v1.0.0
+	github.com/spf13/pflag v1.0.3
+	github.com/spf13/viper v1.2.1
+	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a
+	golang.org/x/sys v0.0.0-20181116161606-93218def8b18
+	golang.org/x/text v0.3.0
+	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
+	gopkg.in/yaml.v1 v1.0.0-20140924161607-9f9df34309c0
+	gopkg.in/yaml.v2 v2.2.2
+)
